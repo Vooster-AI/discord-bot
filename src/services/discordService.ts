@@ -1,13 +1,13 @@
-import { client } from "../bot";
+import { client } from "../bot/index.js";
 import {
   TextChannel,
   ThreadChannel,
   ForumChannel,
   ChannelType,
 } from "discord.js";
-import { prisma } from "../utils/prisma";
-import { UserService } from "./userService";
-import { RewardService } from "./rewardService";
+import { prisma } from "../utils/prisma.js";
+import { UserService } from "./userService.js";
+import { RewardService } from "./rewardService.js";
 
 export class DiscordService {
   /**

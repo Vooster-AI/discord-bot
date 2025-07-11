@@ -1,7 +1,7 @@
 import { Message } from "discord.js";
-import { UserService } from "../../services/userService";
-import { RewardService } from "../../services/rewardService";
-import { prisma } from "../../utils/prisma";
+import { UserService } from "../../services/userService.js";
+import { RewardService } from "../../services/rewardService.js";
+import { prisma } from "../../utils/prisma.js";
 
 export default async function messageCreateHandler(
   message: Message

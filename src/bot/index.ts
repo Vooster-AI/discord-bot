@@ -1,10 +1,10 @@
 import { Client, GatewayIntentBits, Events } from "discord.js";
-import { DISCORD_TOKEN } from "../config";
-import { connectDatabase } from "../utils/prisma";
-import readyEventHandler from "./events/ready";
-import messageCreateHandler from "./events/messageCreate";
-import threadCreateHandler from "./events/threadCreate";
-import interactionCreateHandler from "./events/interactionCreate";
+import { DISCORD_TOKEN } from "../config.js";
+import { connectDatabase } from "../utils/prisma.js";
+import readyEventHandler from "./events/ready.js";
+import messageCreateHandler from "./events/messageCreate.js";
+import threadCreateHandler from "./events/threadCreate.js";
+import interactionCreateHandler from "./events/interactionCreate.js";
 
 // 필요한 intents 목록
 const requiredIntents = [

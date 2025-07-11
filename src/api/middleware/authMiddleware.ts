@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { API_SECRET_KEY } from "../../config";
+import { API_SECRET_KEY } from "../../config.js";
 
 /**
  * API 키 인증 미들웨어

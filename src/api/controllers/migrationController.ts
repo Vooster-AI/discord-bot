@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { DiscordService } from "../../services/discordService";
+import { DiscordService } from "../../services/discordService.js";
 
 /**
  * 채널 히스토리 마이그레이션 컨트롤러

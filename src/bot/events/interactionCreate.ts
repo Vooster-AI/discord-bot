@@ -3,13 +3,13 @@ import {
   EmbedBuilder,
   ChatInputCommandInteraction,
 } from "discord.js";
-import { UserService } from "../../services/userService";
-import { LevelService } from "../../services/levelService";
+import { UserService } from "../../services/userService.js";
+import { LevelService } from "../../services/levelService.js";
 import {
   formatTimeAgo,
   getRewardTypeEmoji,
   truncateContent,
-} from "../../utils/timeUtils";
+} from "../../utils/timeUtils.js";
 
 // 상수 정의
 const COMMAND_COLORS = {

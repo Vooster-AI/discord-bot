@@ -1,7 +1,7 @@
-import { prisma } from "../utils/prisma";
+import { prisma } from "../utils/prisma.js";
 import { Level, DiscordRole } from "@prisma/client";
-import { client } from "../bot";
-import { DISCORD_GUILD_ID } from "../config";
+import { client } from "../bot/index.js";
+import { DISCORD_GUILD_ID } from "../config.js";
 
 export class LevelService {
   /**

@@ -1,8 +1,8 @@
 import express from "express";
-import { startBot } from "./bot";
-import { PORT } from "./config";
-import migrationRoutes from "./api/routes/migrationRoutes";
-import { errorMiddleware } from "./api/middleware/authMiddleware";
+import { startBot } from "./bot/index.js";
+import { PORT } from "./config.js";
+import migrationRoutes from "./api/routes/migrationRoutes.js";
+import { errorMiddleware } from "./api/middleware/authMiddleware.js";
 
 import dotenv from "dotenv";
 dotenv.config();

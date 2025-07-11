@@ -1,5 +1,5 @@
-import { prisma } from "../utils/prisma";
-import { UserService } from "./userService";
+import { prisma } from "../utils/prisma.js";
+import { UserService } from "./userService.js";
 import { RewardHistory, RewardableChannel, PrismaClient } from "@prisma/client";
 
 // 2025년 7월 9일 오후 6:53분(KST) -> UTC 시간으로 변환 (KST는 UTC+9)

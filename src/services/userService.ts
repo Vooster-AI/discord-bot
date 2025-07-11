@@ -1,6 +1,6 @@
-import { prisma } from "../utils/prisma";
+import { prisma } from "../utils/prisma.js";
 import { DiscordUser } from "@prisma/client";
-import { LevelService } from "./levelService";
+import { LevelService } from "./levelService.js";
 
 export class UserService {
   /**

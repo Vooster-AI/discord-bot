@@ -3,12 +3,12 @@ import {
   migrateChannelHistory,
   getMigrationStatus,
   getChannelInfo,
-} from "../controllers/migrationController";
+} from "../controllers/migrationController.js";
 import {
   authMiddleware,
   adminMiddleware,
   logMiddleware,
-} from "../middleware/authMiddleware";
+} from "../middleware/authMiddleware.js";
 
 const router = Router();
 
