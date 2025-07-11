@@ -142,7 +142,7 @@ async function handleTopCommand(
 
     const embed = new EmbedBuilder()
       .setTitle("🏆 리더보드 (Top 5)")
-      .setColor("#gold")
+      .setColor("#0099ff")
       .setFooter({
         text: "Discord Bot Server",
         iconURL: interaction.client.user?.displayAvatarURL(),
