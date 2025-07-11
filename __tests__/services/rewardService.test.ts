@@ -1,8 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { RewardService } from "../../src/services/rewardService";
-import { prisma } from "../../src/utils/prisma";
 
-// Mock Prisma
+// Mock Prisma - must be at the top before imports
 vi.mock("../../src/utils/prisma", () => ({
   prisma: {
     rewardableChannel: {
@@ -10,6 +8,7 @@ vi.mock("../../src/utils/prisma", () => ({
     },
     discordUser: {
       update: vi.fn(),
+      findUnique: vi.fn(),
     },
     rewardHistory: {
       create: vi.fn(),
@@ -24,6 +23,9 @@ vi.mock("../../src/services/userService", () => ({
     checkLevelUp: vi.fn(),
   },
 }));
+
+import { RewardService } from "../../src/services/rewardService";
+import { prisma } from "../../src/utils/prisma";
 
 describe("RewardService - 2배 보상 기능", () => {
   const DOUBLE_REWARD_CUTOFF_DATE = new Date("2025-07-09T09:53:00.000Z"); // 2025-07-09 18:53 KST

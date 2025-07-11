@@ -1,10 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { DiscordService } from "../../src/services/discordService";
-import { RewardService } from "../../src/services/rewardService";
-import { UserService } from "../../src/services/userService";
-import { client } from "../../src/bot";
 
-// Mock dependencies
+// Mock dependencies - must be at the top before imports
 vi.mock("../../src/bot", () => ({
   client: {
     channels: {
@@ -20,6 +16,7 @@ vi.mock("../../src/utils/prisma", () => ({
   prisma: {
     discordEvent: {
       create: vi.fn(),
+      findFirst: vi.fn(),
     },
   },
 }));
@@ -35,6 +32,11 @@ vi.mock("../../src/services/rewardService", () => ({
     processRewardWithDate: vi.fn(),
   },
 }));
+
+import { DiscordService } from "../../src/services/discordService";
+import { RewardService } from "../../src/services/rewardService";
+import { UserService } from "../../src/services/userService";
+import { client } from "../../src/bot";
 
 describe("마이그레이션 - 2배 보상 기능", () => {
   beforeEach(() => {
