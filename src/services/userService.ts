@@ -72,6 +72,64 @@ export class UserService {
   }
 
   /**
+   * 사용자 리워드 내역 조회
+   */
+  static async getUserRewardHistory(
+    discordId: string,
+    limit: number = 5
+  ): Promise<
+    Array<{
+      id: number;
+      amount: number;
+      type: string;
+      createdAt: Date;
+      event: {
+        channelId: string;
+        content: string | null;
+        eventType: string;
+      } | null;
+    }>
+  > {
+    try {
+      // 먼저 사용자 찾기
+      const user = await prisma.discordUser.findUnique({
+        where: { discordId },
+      });
+
+      if (!user) {
+        return [];
+      }
+
+      // 리워드 내역 조회
+      const rewardHistory = await prisma.rewardHistory.findMany({
+        where: { discordUserId: user.id },
+        include: {
+          event: {
+            select: {
+              channelId: true,
+              content: true,
+              eventType: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+      });
+
+      return rewardHistory.map((reward) => ({
+        id: reward.id,
+        amount: reward.amount,
+        type: reward.type,
+        createdAt: reward.createdAt,
+        event: reward.event,
+      }));
+    } catch (error) {
+      console.error("[UserService] 리워드 내역 조회 오류:", error);
+      throw error;
+    }
+  }
+
+  /**
    * 사용자 보상 업데이트
    */
   static async updateUserReward(

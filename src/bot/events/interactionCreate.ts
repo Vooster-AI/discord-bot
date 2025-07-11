@@ -5,6 +5,22 @@ import {
 } from "discord.js";
 import { UserService } from "../../services/userService";
 import { LevelService } from "../../services/levelService";
+import {
+  formatTimeAgo,
+  getRewardTypeEmoji,
+  truncateContent,
+} from "../../utils/timeUtils";
+
+// 상수 정의
+const COMMAND_COLORS = {
+  LEVEL: "#0099ff",
+  TOP: "#0099ff",
+  HISTORY: "#0099ff",
+  VOOSTER: "#0099ff",
+} as const;
+
+const HISTORY_LIMIT = 5;
+const TOP_LIMIT = 10;
 
 export default async function interactionCreateHandler(
   interaction: Interaction
@@ -25,6 +41,9 @@ export default async function interactionCreateHandler(
         break;
       case "top":
         await handleTopCommand(interaction);
+        break;
+      case "history":
+        await handleHistoryCommand(interaction);
         break;
       case "vooster":
         await handleVoosterCommand(interaction);
@@ -106,7 +125,7 @@ async function handleLevelCommand(
           inline: true,
         }
       )
-      .setColor("#0099ff")
+      .setColor(COMMAND_COLORS.LEVEL)
       .setFooter({
         text: "Discord Bot Server",
         iconURL: interaction.client.user?.displayAvatarURL(),
@@ -130,7 +149,7 @@ async function handleTopCommand(
   interaction: ChatInputCommandInteraction
 ): Promise<void> {
   try {
-    const leaderboard = await UserService.getLeaderboard(5);
+    const leaderboard = await UserService.getLeaderboard(TOP_LIMIT);
 
     if (leaderboard.length === 0) {
       await interaction.reply({
@@ -141,8 +160,8 @@ async function handleTopCommand(
     }
 
     const embed = new EmbedBuilder()
-      .setTitle("🏆 리더보드 (Top 5)")
-      .setColor("#0099ff")
+      .setTitle(`🏆 리더보드 (Top ${TOP_LIMIT})`)
+      .setColor(COMMAND_COLORS.TOP)
       .setFooter({
         text: "Discord Bot Server",
         iconURL: interaction.client.user?.displayAvatarURL(),
@@ -150,8 +169,7 @@ async function handleTopCommand(
       .setTimestamp();
 
     leaderboard.forEach((user, index) => {
-      const medal =
-        index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "🏅";
+      const medal = getMedalEmoji(index);
       embed.addFields({
         name: `${medal} ${index + 1}위`,
         value: `${user.globalName || user.username}\n레벨: ${user.currentLevel} | 포인트: ${user.currentReward}`,
@@ -164,6 +182,63 @@ async function handleTopCommand(
     console.error("[TopCommand] 리더보드 명령어 처리 오류:", error);
     await interaction.reply({
       content: "리더보드를 가져오는 중 오류가 발생했습니다.",
+      ephemeral: true,
+    });
+  }
+}
+
+/**
+ * /history 명령어 처리
+ */
+async function handleHistoryCommand(
+  interaction: ChatInputCommandInteraction
+): Promise<void> {
+  const targetUser = interaction.options.getUser("user") || interaction.user;
+
+  try {
+    const rewardHistory = await UserService.getUserRewardHistory(
+      targetUser.id,
+      HISTORY_LIMIT
+    );
+
+    if (rewardHistory.length === 0) {
+      await interaction.reply({
+        content: "리워드 내역이 없습니다.",
+        ephemeral: true,
+      });
+      return;
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle(
+        `${targetUser.globalName || targetUser.username}의 최근 리워드 내역`
+      )
+      .setThumbnail(targetUser.displayAvatarURL())
+      .setColor(COMMAND_COLORS.HISTORY)
+      .setFooter({
+        text: "Discord Bot Server",
+        iconURL: interaction.client.user?.displayAvatarURL(),
+      })
+      .setTimestamp();
+
+    rewardHistory.forEach((reward) => {
+      const typeEmoji = getRewardTypeEmoji(reward.type);
+      const content = truncateContent(reward.event?.content);
+      const channelId = reward.event?.channelId || "알 수 없음";
+      const timeAgo = formatTimeAgo(reward.createdAt);
+
+      embed.addFields({
+        name: `${typeEmoji} ${reward.type} (+${reward.amount} 포인트)`,
+        value: `**채널:** <#${channelId}>\n**내용:** ${content}\n**시점:** ${timeAgo}`,
+        inline: false,
+      });
+    });
+
+    await interaction.reply({ embeds: [embed] });
+  } catch (error) {
+    console.error("[HistoryCommand] 리워드 내역 명령어 처리 오류:", error);
+    await interaction.reply({
+      content: "리워드 내역을 가져오는 중 오류가 발생했습니다.",
       ephemeral: true,
     });
   }
@@ -200,5 +275,21 @@ async function handleVoosterCommand(
       content: "Vooster 이메일 등록 중 오류가 발생했습니다.",
       ephemeral: true,
     });
+  }
+}
+
+/**
+ * 순위에 따른 메달 이모지 반환
+ */
+function getMedalEmoji(index: number): string {
+  switch (index) {
+    case 0:
+      return "🥇";
+    case 1:
+      return "🥈";
+    case 2:
+      return "🥉";
+    default:
+      return "🏅";
   }
 }

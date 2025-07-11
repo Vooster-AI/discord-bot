@@ -19,6 +19,16 @@ const commands = [
     .setDescription("리더보드를 확인합니다."),
 
   new SlashCommandBuilder()
+    .setName("history")
+    .setDescription("사용자의 최근 리워드 내역을 확인합니다.")
+    .addUserOption((option) =>
+      option
+        .setName("user")
+        .setDescription("리워드 내역을 확인할 사용자")
+        .setRequired(false)
+    ),
+
+  new SlashCommandBuilder()
     .setName("vooster")
     .setDescription("Vooster 이메일을 등록합니다.")
     .addStringOption((option) =>
