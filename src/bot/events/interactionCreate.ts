@@ -76,6 +76,24 @@ export default async function interactionCreateHandler(
 }
 
 /**
+ * 사용자가 존재하는지 확인하고, 없으면 생성하는 헬퍼 함수
+ */
+async function ensureUserExists(targetUser: any): Promise<any> {
+  let userData = await UserService.getUserData(targetUser.id);
+
+  if (!userData) {
+    userData = await UserService.findOrCreateUser(targetUser.id, {
+      username: targetUser.username,
+      globalName: targetUser.globalName,
+      discriminator: targetUser.discriminator || null,
+      avatarUrl: targetUser.displayAvatarURL(),
+    });
+  }
+
+  return userData;
+}
+
+/**
  * /level 명령어 처리
  */
 async function handleLevelCommand(
@@ -84,15 +102,7 @@ async function handleLevelCommand(
   const targetUser = interaction.options.getUser("user") || interaction.user;
 
   try {
-    const userData = await UserService.getUserData(targetUser.id);
-
-    if (!userData) {
-      await interaction.reply({
-        content: "사용자 정보를 찾을 수 없습니다.",
-        ephemeral: true,
-      });
-      return;
-    }
+    const userData = await ensureUserExists(targetUser);
 
     // 현재 레벨과 다음 레벨 정보 가져오기
     const currentLevel = await LevelService.getCurrentLevel(
@@ -208,8 +218,12 @@ async function handleHistoryCommand(
     );
 
     if (rewardHistory.length === 0) {
+      // 사용자가 존재하지 않으면 새로 생성
+      await ensureUserExists(targetUser);
+
       await interaction.reply({
-        content: "리워드 내역이 없습니다.",
+        content:
+          "아직 리워드 내역이 없습니다. 메시지를 작성하거나 포럼에 참여해보세요!",
         ephemeral: true,
       });
       return;

@@ -16,6 +16,7 @@ vi.mock("../../../src/services/userService.js", () => ({
     getLeaderboard: vi.fn(),
     getUserRewardHistory: vi.fn(),
     updateVoosterEmail: vi.fn(),
+    findOrCreateUser: vi.fn(), // 추가
   },
 }));
 
@@ -83,6 +84,138 @@ describe("InteractionCreate Event Handler", () => {
     vi.clearAllMocks();
   });
 
+  describe("/level command", () => {
+    it("should reply with user level information when user exists", async () => {
+      // Arrange
+      const mockUserData = {
+        id: 1,
+        discordId: "123456789",
+        username: "testuser",
+        globalName: "Test User",
+        discriminator: null,
+        avatarUrl: "https://example.com/avatar.png",
+        currentLevel: 2,
+        currentReward: 10,
+        voosterEmail: null,
+        joinedAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const mockCurrentLevel = {
+        id: 2,
+        levelNumber: 2,
+        requiredRewardAmount: 5,
+        levelName: "Regular",
+        discordRoleTableId: null,
+        createdAt: new Date(),
+      };
+
+      const mockNextLevel = {
+        id: 3,
+        levelNumber: 3,
+        requiredRewardAmount: 15,
+        levelName: "Beta MVP",
+        discordRoleTableId: 1,
+        createdAt: new Date(),
+      };
+
+      const mockProgress = {
+        currentLevelReward: 5,
+        nextLevelReward: 15,
+        progress: 5,
+        progressPercentage: 50.0,
+      };
+
+      mockInteraction.commandName = "level";
+      mockInteraction.options.getUser = vi.fn().mockReturnValue(null);
+
+      vi.mocked(UserService.getUserData).mockResolvedValue(mockUserData);
+      vi.mocked(LevelService.getCurrentLevel).mockResolvedValue(
+        mockCurrentLevel
+      );
+      vi.mocked(LevelService.getNextLevel).mockResolvedValue(mockNextLevel);
+      vi.mocked(LevelService.calculateProgress).mockResolvedValue(mockProgress);
+
+      // Act
+      await interactionCreateHandler(mockInteraction as Interaction);
+
+      // Assert
+      expect(UserService.getUserData).toHaveBeenCalledWith("123456789");
+      expect(mockInteraction.reply).toHaveBeenCalledWith({
+        embeds: expect.arrayContaining([expect.any(Object)]),
+      });
+    });
+
+    it("should create new user and reply with default level information when user does not exist", async () => {
+      // Arrange
+      const mockNewUser = {
+        id: 1,
+        discordId: "123456789",
+        username: "testuser",
+        globalName: "Test User",
+        discriminator: null,
+        avatarUrl: "https://example.com/avatar.png",
+        currentLevel: 1,
+        currentReward: 0,
+        voosterEmail: null,
+        joinedAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const mockCurrentLevel = {
+        id: 1,
+        levelNumber: 1,
+        requiredRewardAmount: 0,
+        levelName: "Newbie",
+        discordRoleTableId: null,
+        createdAt: new Date(),
+      };
+
+      const mockNextLevel = {
+        id: 2,
+        levelNumber: 2,
+        requiredRewardAmount: 5,
+        levelName: "Regular",
+        discordRoleTableId: null,
+        createdAt: new Date(),
+      };
+
+      const mockProgress = {
+        currentLevelReward: 0,
+        nextLevelReward: 5,
+        progress: 0,
+        progressPercentage: 0.0,
+      };
+
+      mockInteraction.commandName = "level";
+      mockInteraction.options.getUser = vi.fn().mockReturnValue(null);
+
+      // getUserData는 null을 반환하고, findOrCreateUser가 신규 사용자를 생성
+      vi.mocked(UserService.getUserData).mockResolvedValue(null);
+      vi.mocked(UserService.findOrCreateUser).mockResolvedValue(mockNewUser);
+      vi.mocked(LevelService.getCurrentLevel).mockResolvedValue(
+        mockCurrentLevel
+      );
+      vi.mocked(LevelService.getNextLevel).mockResolvedValue(mockNextLevel);
+      vi.mocked(LevelService.calculateProgress).mockResolvedValue(mockProgress);
+
+      // Act
+      await interactionCreateHandler(mockInteraction as Interaction);
+
+      // Assert
+      expect(UserService.getUserData).toHaveBeenCalledWith("123456789");
+      expect(UserService.findOrCreateUser).toHaveBeenCalledWith("123456789", {
+        username: "testuser",
+        globalName: "Test User",
+        discriminator: null,
+        avatarUrl: "https://example.com/avatar.png",
+      });
+      expect(mockInteraction.reply).toHaveBeenCalledWith({
+        embeds: expect.arrayContaining([expect.any(Object)]),
+      });
+    });
+  });
+
   describe("/history command", () => {
     it("should reply with user reward history when user exists", async () => {
       // Arrange
@@ -131,6 +264,50 @@ describe("InteractionCreate Event Handler", () => {
       });
     });
 
+    it("should create new user and reply with no history message when user does not exist", async () => {
+      // Arrange
+      const mockNewUser = {
+        id: 1,
+        discordId: "123456789",
+        username: "testuser",
+        globalName: "Test User",
+        discriminator: null,
+        avatarUrl: "https://example.com/avatar.png",
+        currentLevel: 1,
+        currentReward: 0,
+        voosterEmail: null,
+        joinedAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockInteraction.commandName = "history";
+      mockInteraction.options.getUser = vi.fn().mockReturnValue(null);
+
+      // getUserRewardHistory는 빈 배열을 반환하고, findOrCreateUser가 신규 사용자를 생성
+      vi.mocked(UserService.getUserRewardHistory).mockResolvedValue([]);
+      vi.mocked(UserService.findOrCreateUser).mockResolvedValue(mockNewUser);
+
+      // Act
+      await interactionCreateHandler(mockInteraction as Interaction);
+
+      // Assert
+      expect(UserService.getUserRewardHistory).toHaveBeenCalledWith(
+        "123456789",
+        5
+      );
+      expect(UserService.findOrCreateUser).toHaveBeenCalledWith("123456789", {
+        username: "testuser",
+        globalName: "Test User",
+        discriminator: null,
+        avatarUrl: "https://example.com/avatar.png",
+      });
+      expect(mockInteraction.reply).toHaveBeenCalledWith({
+        content:
+          "아직 리워드 내역이 없습니다. 메시지를 작성하거나 포럼에 참여해보세요!",
+        ephemeral: true,
+      });
+    });
+
     it("should reply with no history message when user has no reward history", async () => {
       // Arrange
       mockInteraction.commandName = "history";
@@ -147,7 +324,8 @@ describe("InteractionCreate Event Handler", () => {
         5
       );
       expect(mockInteraction.reply).toHaveBeenCalledWith({
-        content: "리워드 내역이 없습니다.",
+        content:
+          "아직 리워드 내역이 없습니다. 메시지를 작성하거나 포럼에 참여해보세요!",
         ephemeral: true,
       });
     });
