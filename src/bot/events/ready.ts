@@ -82,6 +82,17 @@ export default function readyEventHandler(client: Client): void {
         });
       }
 
+      // 역할 정보
+      const roles = guild.roles.cache.filter((role) => role.id !== guild.id); // @everyone 역할 제외
+      if (roles.size > 0) {
+        console.log(`     - 역할 목록 (${roles.size}개, @everyone 제외):`);
+        roles.forEach((role) => {
+          console.log(
+            `       • ${role.name} (${role.id}) - 색상: ${role.hexColor} - 멤버: ${role.members.size}명`
+          );
+        });
+      }
+
       console.log("");
     });
   } else {

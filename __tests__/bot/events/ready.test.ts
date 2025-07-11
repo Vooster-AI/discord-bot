@@ -170,6 +170,106 @@ describe("Ready Event Handler", () => {
     );
   });
 
+  it("길드의 역할 정보를 출력한다", () => {
+    const mockGuild = {
+      id: "guild123",
+      name: "Test Guild",
+      memberCount: 100,
+      channels: { cache: new MockCollection() },
+      roles: { cache: new MockCollection() },
+      createdAt: new Date("2023-01-01"),
+      ownerId: "owner123",
+      members: {
+        me: {
+          permissions: {
+            toArray: vi
+              .fn()
+              .mockReturnValue(["SEND_MESSAGES", "READ_MESSAGE_HISTORY"]),
+          },
+        },
+      },
+    };
+
+    const mockRole1 = {
+      id: "role123",
+      name: "Admin",
+      hexColor: "#FF0000",
+      members: { size: 5 },
+    };
+
+    const mockRole2 = {
+      id: "role456",
+      name: "Member",
+      hexColor: "#00FF00",
+      members: { size: 50 },
+    };
+
+    // @everyone 역할 (길드 ID와 동일)
+    const mockEveryoneRole = {
+      id: "guild123",
+      name: "@everyone",
+      hexColor: "#000000",
+      members: { size: 100 },
+    };
+
+    mockGuild.roles.cache.set("role123", mockRole1);
+    mockGuild.roles.cache.set("role456", mockRole2);
+    mockGuild.roles.cache.set("guild123", mockEveryoneRole);
+
+    (mockClient.guilds!.cache as any).set("guild123", mockGuild);
+
+    readyEventHandler(mockClient as Client);
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("역할 목록 (2개, @everyone 제외):")
+    );
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("• Admin (role123) - 색상: #FF0000 - 멤버: 5명")
+    );
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("• Member (role456) - 색상: #00FF00 - 멤버: 50명")
+    );
+  });
+
+  it("역할이 없을 때 @everyone 역할만 있는 경우 역할 목록을 출력하지 않는다", () => {
+    const mockGuild = {
+      id: "guild123",
+      name: "Test Guild",
+      memberCount: 100,
+      channels: { cache: new MockCollection() },
+      roles: { cache: new MockCollection() },
+      createdAt: new Date("2023-01-01"),
+      ownerId: "owner123",
+      members: {
+        me: {
+          permissions: {
+            toArray: vi
+              .fn()
+              .mockReturnValue(["SEND_MESSAGES", "READ_MESSAGE_HISTORY"]),
+          },
+        },
+      },
+    };
+
+    // @everyone 역할만 있는 경우
+    const mockEveryoneRole = {
+      id: "guild123",
+      name: "@everyone",
+      hexColor: "#000000",
+      members: { size: 100 },
+    };
+
+    mockGuild.roles.cache.set("guild123", mockEveryoneRole);
+
+    (mockClient.guilds!.cache as any).set("guild123", mockGuild);
+
+    readyEventHandler(mockClient as Client);
+
+    expect(consoleSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining("역할 목록")
+    );
+  });
+
   it("성공 메시지를 출력한다", () => {
     readyEventHandler(mockClient as Client);
 
