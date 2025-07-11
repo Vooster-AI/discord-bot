@@ -46,7 +46,6 @@ temp/
 # Database
 *.db
 *.sqlite
-prisma/migrations/
 
 # Coverage directory used by tools like istanbul
 coverage/
