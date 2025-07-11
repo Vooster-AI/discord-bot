@@ -1,0 +1,101 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model DiscordUser {
+    id            Int      @id @default(autoincrement())
+    discordId     String   @unique
+    username      String
+    globalName    String?
+    discriminator String?
+    avatarUrl     String?
+    currentReward Int      @default(0)
+    currentLevel  Int      @default(1)
+    voosterEmail  String?
+    joinedAt      DateTime @default(now())
+    updatedAt     DateTime @updatedAt
+
+    events          DiscordEvent[]
+    rewardHistories RewardHistory[]
+
+    @@index([discordId])
+    @@map("discord_user")
+}
+
+model DiscordEvent {
+    id            Int         @id @default(autoincrement())
+    user          DiscordUser @relation(fields: [discordUserId], references: [id])
+    discordUserId Int
+    eventType     String
+    channelId     String
+    messageId     String?
+    content       String?
+    createdAt     DateTime    @default(now())
+    processed     Boolean     @default(false)
+
+    rewardHistory RewardHistory?
+
+    @@index([discordUserId])
+    @@index([channelId])
+    @@map("discord_event")
+}
+
+model DiscordRole {
+    id            Int      @id @default(autoincrement())
+    discordRoleId String   @unique
+    roleName      String
+    description   String?
+    createdAt     DateTime @default(now())
+
+    levels Level[]
+
+    @@map("discord_role")
+}
+
+model RewardHistory {
+    id             Int           @id @default(autoincrement())
+    user           DiscordUser   @relation(fields: [discordUserId], references: [id])
+    discordUserId  Int
+    amount         Int
+    type           String // 'message', 'forum_post', 'comment', 'manual'
+    reason         String?
+    event          DiscordEvent? @relation(fields: [discordEventId], references: [id])
+    discordEventId Int?          @unique
+    createdAt      DateTime      @default(now())
+
+    @@index([discordUserId])
+    @@map("reward_history")
+}
+
+model RewardableChannel {
+    id                    Int      @id @default(autoincrement())
+    channelId             String   @unique
+    channelName           String?
+    messageRewardAmount   Int      @default(0)
+    commentRewardAmount   Int      @default(0)
+    forumPostRewardAmount Int      @default(0)
+    isActive              Boolean  @default(true)
+    createdAt             DateTime @default(now())
+
+    @@map("rewardable_channel")
+}
+
+model Level {
+    id                   Int          @id @default(autoincrement())
+    levelNumber          Int          @unique
+    requiredRewardAmount Int
+    levelName            String
+    role                 DiscordRole? @relation(fields: [discordRoleTableId], references: [id])
+    discordRoleTableId   Int?
+    createdAt            DateTime     @default(now())
+
+    @@map("level")
+}
