@@ -223,7 +223,7 @@ describe("GrantRewardUseCase", () => {
       );
       expect(discordService.sendDirectMessage).toHaveBeenCalledWith(
         "user123",
-        "🎉 축하합니다! 레벨 2(Regular)에 도달했습니다!"
+        "🎉 축하합니다! 레벨 2(Regular)에 도달했습니다!\n새로운 역할 **Beta MVP**을 획득하셨습니다!"
       );
       expect(result).toEqual({
         success: true,
@@ -415,6 +415,63 @@ describe("GrantRewardUseCase", () => {
         leveledUp: false,
         newLevel: undefined,
         assignedRoleId: undefined,
+      });
+    });
+
+    it("should level up the user, assign a role, and send a DM when manual reward triggers level up", async () => {
+      // Arrange: 수동 보상으로 레벨업이 가능한 상황 설정
+      const updatedUser = { ...mockUser, currentReward: 25 };
+      const levelTwoMock = {
+        ...mockLevel,
+        levelNumber: 2,
+        levelName: "Regular",
+      };
+
+      (userRepository.findByDiscordId as any).mockResolvedValue(mockUser);
+      (userRepository.updatePoints as any).mockResolvedValue(updatedUser);
+      (levelRepository.calculateLevelFromReward as any).mockResolvedValue(2); // 레벨업
+      (levelRepository.getRoleForLevel as any).mockResolvedValue(mockRole);
+      (levelRepository.findByLevelNumber as any).mockResolvedValue(
+        levelTwoMock
+      );
+      (rewardRepository.createRewardHistory as any).mockResolvedValue({
+        id: 1,
+        discordUserId: 1,
+        amount: 15,
+        type: "manual",
+        reason: "관리자 수동 보상",
+        discordEventId: null,
+        createdAt: new Date(),
+      });
+      (userRepository.updateLevel as any).mockResolvedValue(updatedUser);
+      (discordService.assignRoleToUser as any).mockResolvedValue(undefined);
+      (discordService.sendDirectMessage as any).mockResolvedValue(true);
+
+      // Act: useCase.executeManualReward 실행
+      const result = await useCase.executeManualReward(
+        "user123",
+        15,
+        "관리자 수동 보상"
+      );
+
+      // Assert: 수동 보상으로 레벨업 관련 메서드 호출 검증
+      expect(userRepository.updateLevel).toHaveBeenCalledWith(1, 2);
+      expect(levelRepository.getRoleForLevel).toHaveBeenCalledWith(2);
+      expect(discordService.assignRoleToUser).toHaveBeenCalledWith(
+        "user123",
+        "role123"
+      );
+      expect(discordService.sendDirectMessage).toHaveBeenCalledWith(
+        "user123",
+        "🎉 축하합니다! 레벨 2(Regular)에 도달했습니다!\n새로운 역할 **Beta MVP**을 획득하셨습니다!"
+      );
+      expect(result).toEqual({
+        success: true,
+        rewardAmount: 15,
+        newTotalReward: 25,
+        leveledUp: true,
+        newLevel: 2,
+        assignedRoleId: "role123",
       });
     });
 

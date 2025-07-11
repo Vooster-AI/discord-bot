@@ -96,10 +96,10 @@ export class GrantRewardUseCase {
           );
           assignedRoleId = role.discordRoleId;
 
-          // 레벨 업 축하 메시지
+          // 레벨 업 축하 메시지 (역할 이름 포함)
           await this.discordService.sendDirectMessage(
             discordId,
-            `🎉 축하합니다! 레벨 ${newLevel}(${await this.getLevelName(newLevel)})에 도달했습니다!`
+            `🎉 축하합니다! 레벨 ${newLevel}(${await this.getLevelName(newLevel)})에 도달했습니다!\n새로운 역할 **${role.roleName}**을 획득하셨습니다!`
           );
         }
       }
@@ -164,7 +164,7 @@ export class GrantRewardUseCase {
 
           await this.discordService.sendDirectMessage(
             discordId,
-            `🎉 축하합니다! 레벨 ${newLevel}(${await this.getLevelName(newLevel)})에 도달했습니다!`
+            `🎉 축하합니다! 레벨 ${newLevel}(${await this.getLevelName(newLevel)})에 도달했습니다!\n새로운 역할 **${role.roleName}**을 획득하셨습니다!`
           );
         }
       }

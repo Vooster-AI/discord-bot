@@ -19,7 +19,6 @@ vi.mock("../../src/bot", () => ({
 vi.mock("../../src/utils/prisma", () => ({
   prisma: {
     discordEvent: {
-      findFirst: vi.fn(),
       create: vi.fn(),
     },
   },
@@ -124,7 +123,6 @@ describe("마이그레이션 - 2배 보상 기능", () => {
       (UserService.findOrCreateUser as any).mockResolvedValue(mockUser);
 
       const { prisma } = await import("../../src/utils/prisma");
-      (prisma.discordEvent.findFirst as any).mockResolvedValue(null);
       (prisma.discordEvent.create as any).mockResolvedValue(mockEvent);
 
       // Act
@@ -275,7 +273,6 @@ describe("마이그레이션 - 2배 보상 기능", () => {
       (UserService.findOrCreateUser as any).mockResolvedValue(mockUser);
 
       const { prisma } = await import("../../src/utils/prisma");
-      (prisma.discordEvent.findFirst as any).mockResolvedValue(null);
       (prisma.discordEvent.create as any).mockResolvedValue(mockEvent);
 
       // Mock fetchPastMessages를 호출하지 않도록 설정

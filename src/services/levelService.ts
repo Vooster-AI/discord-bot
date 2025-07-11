@@ -120,14 +120,20 @@ export class LevelService {
         return;
       }
 
+      // 역할 정보 가져오기
+      const role = await guild.roles.fetch(roleId);
+      const roleName = role?.name || "알 수 없는 역할";
+
       await member.roles.add(roleId);
       console.log(
-        `[LevelService] 역할 부여 완료: ${member.user.username} → ${roleId}`
+        `[LevelService] 역할 부여 완료: ${member.user.username} → ${roleName} (${roleId})`
       );
 
-      // 사용자에게 DM 전송 (선택사항)
+      // 사용자에게 DM 전송 (역할 이름 포함)
       try {
-        await member.send(`🎉 축하합니다! 새로운 역할을 획득하셨습니다!`);
+        await member.send(
+          `🎉 축하합니다! 새로운 역할 **${roleName}**을 획득하셨습니다!`
+        );
       } catch (dmError) {
         console.warn(`[LevelService] DM 전송 실패: ${member.user.username}`);
       }
