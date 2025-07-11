@@ -15,6 +15,10 @@ const commands = [
     ),
 
   new SlashCommandBuilder()
+    .setName("levels")
+    .setDescription("레벨업 기준과 보상 정보를 확인합니다."),
+
+  new SlashCommandBuilder()
     .setName("top")
     .setDescription("리더보드를 확인합니다."),
 
@@ -37,6 +41,10 @@ const commands = [
         .setDescription("등록할 Vooster 이메일 주소")
         .setRequired(true)
     ),
+
+  new SlashCommandBuilder()
+    .setName("help")
+    .setDescription("사용 가능한 명령어 목록을 확인합니다."),
 ].map((command) => command.toJSON());
 
 // Discord REST API 클라이언트 생성

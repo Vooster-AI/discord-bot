@@ -48,6 +48,12 @@ export default async function interactionCreateHandler(
       case "vooster":
         await handleVoosterCommand(interaction);
         break;
+      case "levels":
+        await handleLevelsCommand(interaction);
+        break;
+      case "help":
+        await handleHelpCommand(interaction);
+        break;
       default:
         await interaction.reply({
           content: "알 수 없는 명령어입니다.",
@@ -273,6 +279,113 @@ async function handleVoosterCommand(
     console.error("[VoosterCommand] Vooster 이메일 명령어 처리 오류:", error);
     await interaction.reply({
       content: "Vooster 이메일 등록 중 오류가 발생했습니다.",
+      ephemeral: true,
+    });
+  }
+}
+
+/**
+ * /levels 명령어 처리
+ */
+async function handleLevelsCommand(
+  interaction: ChatInputCommandInteraction
+): Promise<void> {
+  try {
+    const levels = await LevelService.getAllLevels();
+
+    if (levels.length === 0) {
+      await interaction.reply({
+        content: "레벨 정보를 찾을 수 없습니다.",
+        ephemeral: true,
+      });
+      return;
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle("🎯 레벨 시스템 안내")
+      .setDescription("포인트를 모아서 레벨을 올리고 특별한 역할을 획득하세요!")
+      .setColor(COMMAND_COLORS.LEVEL)
+      .setFooter({
+        text: "Discord Bot Server",
+        iconURL: interaction.client.user?.displayAvatarURL(),
+      })
+      .setTimestamp();
+
+    levels.forEach((level) => {
+      const hasRole = level.discordRoleTableId !== null;
+      const roleIndicator = hasRole ? " 🎖️" : "";
+
+      embed.addFields({
+        name: `레벨 ${level.levelNumber}: ${level.levelName}`,
+        value: `필요 포인트: ${level.requiredRewardAmount}${roleIndicator}`,
+        inline: true,
+      });
+    });
+
+    await interaction.reply({ embeds: [embed] });
+  } catch (error) {
+    console.error("[LevelsCommand] 레벨 시스템 명령어 처리 오류:", error);
+    await interaction.reply({
+      content: "레벨 정보를 가져오는 중 오류가 발생했습니다.",
+      ephemeral: true,
+    });
+  }
+}
+
+/**
+ * /help 명령어 처리
+ */
+async function handleHelpCommand(
+  interaction: ChatInputCommandInteraction
+): Promise<void> {
+  try {
+    const embed = new EmbedBuilder()
+      .setTitle("🤖 봇 명령어 도움말")
+      .setDescription("사용 가능한 모든 명령어와 설명입니다.")
+      .setColor(COMMAND_COLORS.LEVEL)
+      .addFields(
+        {
+          name: "/level [user]",
+          value: "사용자의 레벨 정보를 확인합니다.",
+          inline: false,
+        },
+        {
+          name: "/levels",
+          value: "레벨업 기준과 보상 정보를 확인합니다.",
+          inline: false,
+        },
+        {
+          name: "/top",
+          value: "서버 리더보드를 확인합니다.",
+          inline: false,
+        },
+        {
+          name: "/history [user]",
+          value: "사용자의 최근 리워드 내역을 확인합니다.",
+          inline: false,
+        },
+        {
+          name: "/vooster <email>",
+          value: "Vooster 이메일을 등록합니다.",
+          inline: false,
+        },
+        {
+          name: "/help",
+          value: "이 도움말을 표시합니다.",
+          inline: false,
+        }
+      )
+      .setFooter({
+        text: "Discord Bot Server",
+        iconURL: interaction.client.user?.displayAvatarURL(),
+      })
+      .setTimestamp();
+
+    await interaction.reply({ embeds: [embed] });
+  } catch (error) {
+    console.error("[HelpCommand] 도움말 명령어 처리 오류:", error);
+    await interaction.reply({
+      content: "도움말을 가져오는 중 오류가 발생했습니다.",
       ephemeral: true,
     });
   }
