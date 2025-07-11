@@ -1,0 +1,305 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+### 1. Bot Client Initialization and Event Registration
+
+First is the basic setup to run the Discord Bot and connect to the Discord Gateway. You must explicitly declare which types of events the bot will receive using `Intents`.
+
+- `Client`: The main class representing the bot client.
+- `GatewayIntentBits`: Defines the types of events the bot will receive.
+- `Events`: Provides event names as constants to prevent typos.
+
+```typescript
+// src/bot/index.ts
+
+import { Client, GatewayIntentBits, Events } from "discord.js";
+import { DISCORD_TOKEN } from "../config"; // Import token from environment variables
+import readyEventHandler from "./events/ready";
+import messageCreateHandler from "./events/messageCreate";
+import threadCreateHandler from "./events/threadCreate";
+import interactionCreateHandler from "./events/interactionCreate"; // For handling slash commands
+
+// Define the permissions (Intents) the bot needs
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds, // For server-related information
+    GatewayIntentBits.GuildMessages, // For server message-related information
+    GatewayIntentBits.MessageContent, // Required since v14 to read message content
+    GatewayIntentBits.GuildMembers, // Required for actions like role assignment
+  ],
+});
+
+// Register event handlers
+// 1. Bot ready event
+client.once(Events.ClientReady, readyEventHandler);
+
+// 2. Message create event (includes regular messages and comments)
+client.on(Events.MessageCreate, messageCreateHandler);
+
+// 3. Thread (forum post) create event
+client.on(Events.ThreadCreate, threadCreateHandler);
+
+// 4. Interaction (slash command) create event
+client.on(Events.InteractionCreate, interactionCreateHandler);
+
+// Log in to Discord
+client.login(DISCORD_TOKEN);
+```
+
+### 2. Event Handler: Message and Comment Processing (`messageCreate`)
+
+This handles the event that occurs when a user writes a message or adds a comment to a thread/forum.
+
+- `Message`: The received message object.
+- `message.author`: Information about the message author.
+- `message.channel.isThread()`: Checks if the message was sent within a thread (a comment).
+
+```typescript
+// src/bot/events/messageCreate.ts
+
+import { Message } from "discord.js";
+import { UserService, RewardService } from "../../services"; // Implemented service classes
+
+export default async function messageCreateHandler(message: Message) {
+  // Ignore messages from the bot itself or system messages
+  if (message.author.bot || message.system) return;
+
+  try {
+    // 1. Find or create the user
+    const user = await UserService.findOrCreateUser(message.author.id, {
+      username: message.author.username,
+      global_name: message.author.globalName,
+      discriminator: message.author.discriminator,
+      avatar_url: message.author.displayAvatarURL(),
+    });
+
+    // 2. Determine the event type (comment or regular message)
+    const eventType = message.channel.isThread() ? "comment" : "message";
+
+    // 3. Save the event to the database (example)
+    // await prisma.discord_event.create(...);
+
+    // 4. Process the reward
+    await RewardService.processReward(user.id, message.channel.id, eventType);
+  } catch (error) {
+    console.error("Error processing message:", error);
+  }
+}
+```
+
+### 3. Event Handler: Forum Post Processing (`threadCreate`)
+
+This handles the event when a user creates a new post (thread) in a forum channel.
+
+- `ThreadChannel`: The created thread channel object.
+- `thread.ownerId`: The ID of the user who created the thread.
+
+```typescript
+// src/bot/events/threadCreate.ts
+
+import { ThreadChannel } from "discord.js";
+import { UserService, RewardService } from "../../services";
+
+export default async function threadCreateHandler(
+  thread: ThreadChannel,
+  newlyCreated: boolean
+) {
+  // Do not process if the thread is not newly created
+  if (!newlyCreated) return;
+
+  // Optional: Only process posts from forum channels (ignore threads derived from regular channels)
+  // if (!thread.parent?.isForum()) return;
+
+  const ownerId = thread.ownerId;
+  if (!ownerId) return; // If the thread creator is unknown
+
+  try {
+    const owner = await thread.client.users.fetch(ownerId);
+
+    // 1. Find or create the user
+    const user = await UserService.findOrCreateUser(owner.id, {
+      username: owner.username,
+      global_name: owner.globalName,
+      discriminator: owner.discriminator,
+      avatar_url: owner.displayAvatarURL(),
+    });
+
+    // 2. Save the event to the database
+    // await prisma.discord_event.create(...);
+
+    // 3. Process the reward
+    await RewardService.processReward(user.id, thread.parentId!, "forum_post");
+  } catch (error) {
+    console.error("Error processing forum post:", error);
+  }
+}
+```
+
+### 4. Slash Command Handling
+
+This responds when a user uses a slash command like `/level` or `/top`. All commands are received through the `InteractionCreate` event.
+
+- `Interaction`: The base interface for all interactions.
+- `interaction.isChatInputCommand()`: Checks if the interaction is a slash command.
+- `interaction.commandName`: The name of the used command.
+- `interaction.options`: The options (arguments) included with the command.
+- `interaction.reply()`: Responds to the command.
+
+```typescript
+// src/bot/events/interactionCreate.ts
+
+import { Interaction, EmbedBuilder } from "discord.js";
+import { UserService } from "../../services";
+
+export default async function interactionCreateHandler(
+  interaction: Interaction
+) {
+  if (!interaction.isChatInputCommand()) return;
+
+  const { commandName } = interaction;
+
+  try {
+    if (commandName === "level") {
+      const targetUser =
+        interaction.options.getUser("user") || interaction.user;
+      const userData = await UserService.getUserData(targetUser.id);
+
+      if (!userData) {
+        await interaction.reply({
+          content: "Could not find user information.",
+          ephemeral: true,
+        });
+        return;
+      }
+
+      const embed = new EmbedBuilder()
+        .setTitle(
+          `${targetUser.globalName || targetUser.username}'s Level Information`
+        )
+        .addFields(
+          { name: "Level", value: `${userData.current_level}`, inline: true },
+          { name: "Points", value: `${userData.current_reward}`, inline: true }
+          // ... add more info like points needed for the next level
+        )
+        .setColor("#0099ff");
+
+      await interaction.reply({ embeds: [embed] });
+    } else if (commandName === "top") {
+      // ... logic for the /top command
+    } else if (commandName === "vooster") {
+      const email = interaction.options.getString("email", true);
+      await UserService.updateVoosterEmail(interaction.user.id, email);
+      await interaction.reply({
+        content: `Your Vooster email has been successfully registered.`,
+        ephemeral: true,
+      });
+    }
+  } catch (error) {
+    console.error(`Error processing ${commandName} command:`, error);
+    await interaction.reply({
+      content: "An error occurred while processing the command.",
+      ephemeral: true,
+    });
+  }
+}
+```
+
+### 5. Role Granting and Management
+
+This code assigns a role to a user when they reach a certain level.
+
+- `Guild`: Represents a Discord server.
+- `guild.members.fetch(userId)`: Fetches a server member by their ID.
+- `member.roles.add(roleId)`: Adds a role to the member.
+
+```typescript
+// src/services/LevelService.ts (example)
+
+import { client } from "../bot"; // Import the initialized client instance
+import { GUILD_ID } from "../config";
+
+class LevelService {
+  public static async assignDiscordRole(
+    userId: string,
+    roleId: string
+  ): Promise<void> {
+    try {
+      const guild = await client.guilds.fetch(GUILD_ID);
+      const member = await guild.members.fetch(userId);
+
+      if (member) {
+        await member.roles.add(roleId);
+        console.log(`Assigned role ${roleId} to ${member.user.username}.`);
+
+        // (Optional) Send a DM notification to the user
+        await member.send(`Congratulations! You have earned a new role!`);
+      }
+    } catch (error) {
+      console.error(
+        `Error assigning role (${roleId}) to user ${userId}:`,
+        error
+      );
+    }
+  }
+
+  // ... other level service logic
+}
+```
+
+### 6. Data Migration: Fetching Past Messages
+
+This logic sequentially fetches past messages from a specific channel while respecting Discord API Rate Limits.
+
+- `channel.messages.fetch()`: The function to fetch messages from a channel.
+- `limit`: The number of messages to fetch at a time (max 100).
+- `before`: Fetches only messages created before a specific message ID (for pagination).
+
+```typescript
+// src/services/discordService.ts (example)
+
+import { client } from "../bot";
+import { TextChannel } from "discord.js";
+
+class DiscordService {
+  public static async fetchPastMessages(
+    channelId: string,
+    totalLimit: number
+  ): Promise<void> {
+    const channel = await client.channels.fetch(channelId);
+    if (!(channel instanceof TextChannel)) {
+      throw new Error("Channel is not a text channel.");
+    }
+
+    let lastMessageId: string | undefined = undefined;
+    let fetchedMessagesCount = 0;
+
+    while (fetchedMessagesCount < totalLimit) {
+      const options: { limit: number; before?: string } = { limit: 100 };
+      if (lastMessageId) {
+        options.before = lastMessageId;
+      }
+
+      const messages = await channel.messages.fetch(options);
+      if (messages.size === 0) {
+        break; // Exit if there are no more messages to fetch
+      }
+
+      for (const message of messages.values()) {
+        // Logic to process the fetched message (e.g., save to DB)
+        // console.log(`[${message.createdAt.toISOString()}] ${message.author.username}: ${message.content}`);
+        fetchedMessagesCount++;
+      }
+
+      lastMessageId = messages.lastKey();
+
+      // It's good practice to add a small delay to avoid hitting rate limits
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
+    console.log(`Fetched a total of ${fetchedMessagesCount} messages.`);
+  }
+}
+```
