@@ -1,0 +1,61 @@
+# 의존성 폴더
+node_modules
+npm-debug.log
+pnpm-debug.log
+yarn-error.log
+
+# 빌드 결과물 (멀티 스테이지 빌드에서 관리)
+dist
+
+# 테스트 관련
+coverage
+__tests__
+*.test.ts
+*.spec.ts
+vitest.config.js
+
+# 개발 환경 파일
+.env
+.env.local
+.env.development
+.env.test
+
+# Git 관련
+.git
+.gitignore
+.gitattributes
+
+# IDE 관련
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS 관련
+.DS_Store
+Thumbs.db
+
+# 로그 파일
+*.log
+logs
+
+# 캐시 파일
+.cache
+.npm
+.yarn-integrity
+
+# 임시 파일
+tmp
+temp
+
+# 문서 파일
+README.md
+*.md
+docs
+
+# 설정 파일
+.editorconfig
+.prettierrc
+.eslintrc
+.eslintignore 

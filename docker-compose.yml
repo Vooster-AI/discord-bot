@@ -1,0 +1,65 @@
+version: "3.8"
+
+services:
+  discord-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: discord-bot-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      # 환경 변수는 .env 파일에서 로드
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
+      - DISCORD_GUILD_ID=${DISCORD_GUILD_ID}
+      - DATABASE_URL=${DATABASE_URL}
+      - API_SECRET_KEY=${API_SECRET_KEY}
+    env_file:
+      - .env
+    volumes:
+      # 로그 파일 저장용 (선택사항)
+      - ./logs:/app/logs
+    networks:
+      - discord-bot-network
+    depends_on:
+      - postgres
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/api/discord/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: discord-bot-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - POSTGRES_DB=${POSTGRES_DB:-discord_bot}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - discord-bot-network
+
+networks:
+  discord-bot-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

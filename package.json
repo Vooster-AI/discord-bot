@@ -6,7 +6,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "rimraf dist && tsc",
     "start": "node dist/index.js",
     "db:generate": "prisma generate",
     "db:migrate:create": "prisma migrate dev --create-only",
@@ -14,7 +14,10 @@
     "deploy-commands": "tsx src/bot/deploy-commands.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "clean": "rimraf dist",
+    "build:production": "npm run clean && npm run db:generate && npm run build",
+    "verify:build": "node -e \"console.log('Build verification...'); import('./dist/index.js').then(() => console.log('✅ Build verified successfully')).catch(err => { console.error('❌ Build verification failed:', err.message); process.exit(1); });\""
   },
   "keywords": [
     "discord",
@@ -36,6 +39,7 @@
     "@vitest/coverage-v8": "^3.2.4",
     "happy-dom": "^18.0.1",
     "prisma": "^5.0.0",
+    "rimraf": "^6.0.1",
     "tsx": "^4.20.3",
     "typescript": "^5.0.0",
     "vitest": "^3.2.4"
