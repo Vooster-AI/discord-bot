@@ -1,5 +1,6 @@
 import { REST, Routes, SlashCommandBuilder } from "discord.js";
 import { DISCORD_CLIENT_ID, DISCORD_GUILD_ID, DISCORD_TOKEN } from "../config";
+import { pathToFileURL } from "url";
 
 // 슬래시 커맨드 정의
 const commands = [
@@ -57,8 +58,8 @@ async function deployCommands(): Promise<void> {
   }
 }
 
-// 스크립트 실행
-if (require.main === module) {
+// ES modules에서 스크립트 직접 실행 확인
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   deployCommands();
 }
 

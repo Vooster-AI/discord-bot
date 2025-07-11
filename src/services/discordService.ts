@@ -54,6 +54,18 @@ export class DiscordService {
           if (message.author.bot || message.system) continue;
 
           try {
+            // 중복 체크: 이미 저장된 메시지인지 확인
+            const existingEvent = await prisma.discordEvent.findFirst({
+              where: { messageId: message.id },
+            });
+
+            if (existingEvent) {
+              console.log(
+                `[DiscordService] 이미 처리된 메시지 건너뛰기: ${message.id}`
+              );
+              continue;
+            }
+
             // 사용자 생성/업데이트
             const user = await UserService.findOrCreateUser(message.author.id, {
               username: message.author.username,
@@ -151,6 +163,18 @@ export class DiscordService {
         try {
           // 스레드 작성자 처리
           if (thread.ownerId) {
+            // 중복 체크: 이미 저장된 포럼 게시물인지 확인
+            const existingEvent = await prisma.discordEvent.findFirst({
+              where: { messageId: thread.id },
+            });
+
+            if (existingEvent) {
+              console.log(
+                `[DiscordService] 이미 처리된 포럼 게시물 건너뛰기: ${thread.id}`
+              );
+              continue;
+            }
+
             const owner = await client.users.fetch(thread.ownerId);
 
             const user = await UserService.findOrCreateUser(owner.id, {

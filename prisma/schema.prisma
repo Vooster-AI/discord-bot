@@ -37,7 +37,7 @@ model DiscordEvent {
     discordUserId Int
     eventType     String
     channelId     String
-    messageId     String?
+    messageId     String?     @unique
     content       String?
     createdAt     DateTime    @default(now())
     processed     Boolean     @default(false)
