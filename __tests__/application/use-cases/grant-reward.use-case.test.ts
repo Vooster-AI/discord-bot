@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { GrantRewardUseCase } from "../../../src/application/use-cases/grant-reward.use-case";
 import {
   IUserRepository,
@@ -7,89 +8,101 @@ import {
   User,
   RewardableChannel,
   DiscordRole,
+  RewardType,
+  Level,
 } from "../../../src/domain";
 
+// Mock 객체 선언
+let userRepository: IUserRepository;
+let levelRepository: ILevelRepository;
+let rewardRepository: IRewardRepository;
+let discordService: IDiscordService;
+let useCase: GrantRewardUseCase;
+
+// Mock 데이터 정의
+const mockUser: User = {
+  id: 1,
+  discordId: "user123",
+  username: "testuser",
+  globalName: "Test User",
+  discriminator: null,
+  avatarUrl: "https://example.com/avatar.jpg",
+  currentReward: 10,
+  currentLevel: 1,
+  voosterEmail: null,
+  joinedAt: new Date("2023-01-01"),
+  updatedAt: new Date("2023-01-01"),
+};
+
+const mockChannel: RewardableChannel = {
+  id: 1,
+  channelId: "channel123",
+  channelName: "test-channel",
+  messageRewardAmount: 5,
+  commentRewardAmount: 3,
+  forumPostRewardAmount: 10,
+  isActive: true,
+  createdAt: new Date("2023-01-01"),
+};
+
+const mockRole: DiscordRole = {
+  id: 1,
+  discordRoleId: "role123",
+  roleName: "Beta MVP",
+  description: "Beta test role",
+  createdAt: new Date("2023-01-01"),
+};
+
+const mockLevel: Level = {
+  id: 1,
+  levelNumber: 1,
+  requiredRewardAmount: 0,
+  levelName: "Newbie",
+  discordRoleTableId: null,
+  createdAt: new Date("2023-01-01"),
+};
+
 describe("GrantRewardUseCase", () => {
-  let useCase: GrantRewardUseCase;
-  let userRepository: jest.Mocked<IUserRepository>;
-  let levelRepository: jest.Mocked<ILevelRepository>;
-  let rewardRepository: jest.Mocked<IRewardRepository>;
-  let discordService: jest.Mocked<IDiscordService>;
-
-  // 테스트 데이터
-  const mockUser: User = {
-    id: 1,
-    discordId: "123456789",
-    username: "testuser",
-    globalName: "Test User",
-    discriminator: null,
-    avatarUrl: "https://example.com/avatar.jpg",
-    currentReward: 10,
-    currentLevel: 1,
-    voosterEmail: null,
-    joinedAt: new Date(),
-    updatedAt: new Date(),
-  };
-
-  const mockChannel: RewardableChannel = {
-    id: 1,
-    channelId: "987654321",
-    channelName: "general",
-    messageRewardAmount: 1,
-    commentRewardAmount: 2,
-    forumPostRewardAmount: 3,
-    isActive: true,
-    createdAt: new Date(),
-  };
-
-  const mockRole: DiscordRole = {
-    id: 1,
-    discordRoleId: "555555555",
-    roleName: "Beta MVP",
-    description: "Beta tester role",
-    createdAt: new Date(),
-  };
-
   beforeEach(() => {
-    // Mock 객체 생성
+    // 각 테스트 전에 Mock 객체 초기화
     userRepository = {
-      findByDiscordId: jest.fn(),
-      findById: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      findOrCreate: jest.fn(),
-      updatePoints: jest.fn(),
-      updateLevel: jest.fn(),
-      getTopUsers: jest.fn(),
-      updateVoosterEmail: jest.fn(),
+      findByDiscordId: vi.fn(),
+      findById: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      findOrCreate: vi.fn(),
+      updatePoints: vi.fn(),
+      updateLevel: vi.fn(),
+      getTopUsers: vi.fn(),
+      updateVoosterEmail: vi.fn(),
     };
 
     levelRepository = {
-      calculateLevelFromReward: jest.fn(),
-      getCurrentLevel: jest.fn(),
-      getNextLevel: jest.fn(),
-      findByLevelNumber: jest.fn(),
-      getAllLevels: jest.fn(),
-      calculateProgress: jest.fn(),
-      getRoleForLevel: jest.fn(),
+      calculateLevelFromReward: vi.fn(),
+      getCurrentLevel: vi.fn(),
+      getNextLevel: vi.fn(),
+      findByLevelNumber: vi.fn(),
+      getAllLevels: vi.fn(),
+      calculateProgress: vi.fn(),
+      getRoleForLevel: vi.fn(),
     };
 
     rewardRepository = {
-      createRewardHistory: jest.fn(),
-      getRewardHistory: jest.fn(),
-      getRewardableChannel: jest.fn(),
-      getRewardableChannels: jest.fn(),
-      upsertRewardableChannel: jest.fn(),
-      getChannelRewardStats: jest.fn(),
+      createRewardHistory: vi.fn(),
+      getRewardHistory: vi.fn(),
+      getRewardableChannel: vi.fn(),
+      getRewardableChannels: vi.fn(),
+      upsertRewardableChannel: vi.fn(),
+      getChannelRewardStats: vi.fn(),
     };
 
     discordService = {
-      assignRoleToUser: jest.fn(),
-      sendDirectMessage: jest.fn(),
-      fetchUser: jest.fn(),
-      fetchGuildMember: jest.fn(),
-      hasRole: jest.fn(),
-      fetchChannel: jest.fn(),
+      assignRoleToUser: vi.fn(),
+      sendDirectMessage: vi.fn(),
+      fetchUser: vi.fn(),
+      fetchGuildMember: vi.fn(),
+      hasRole: vi.fn(),
+      fetchChannel: vi.fn(),
     };
 
     useCase = new GrantRewardUseCase(
@@ -100,246 +113,56 @@ describe("GrantRewardUseCase", () => {
     );
   });
 
-  describe("execute", () => {
-    it("메시지 작성 시 사용자 포인트를 정상적으로 증가시켜야 한다", async () => {
-      // Given (준비)
-      const discordId = "123456789";
-      const username = "testuser";
-      const globalName = "Test User";
-      const channelId = "987654321";
-      const eventType = "message";
+  // --- 시나리오 그룹 1: 활동 보상 (execute) ---
+  describe("execute (Activity Rewards)", () => {
+    it("should grant points and record history when a user acts in a rewardable channel", async () => {
+      // Arrange: 사용자가 보상 가능 채널에서 활동하는 상황 설정
+      const updatedUser = { ...mockUser, currentReward: 15 };
 
-      userRepository.findOrCreate.mockResolvedValue(mockUser);
-      rewardRepository.getRewardableChannel.mockResolvedValue(mockChannel);
-      userRepository.updatePoints.mockResolvedValue({
-        ...mockUser,
-        currentReward: 11,
-      });
-      levelRepository.calculateLevelFromReward.mockResolvedValue(1);
-      rewardRepository.createRewardHistory.mockResolvedValue({
-        id: 1,
-        discordUserId: 1,
-        amount: 1,
-        type: "message",
-        reason: "message 활동 보상",
-        discordEventId: null,
-        createdAt: new Date(),
-      });
-
-      // When (실행)
-      const result = await useCase.execute(
-        discordId,
-        username,
-        globalName,
-        channelId,
-        eventType
+      (userRepository.findOrCreate as any).mockResolvedValue(mockUser);
+      (rewardRepository.getRewardableChannel as any).mockResolvedValue(
+        mockChannel
       );
-
-      // Then (검증)
-      expect(userRepository.findOrCreate).toHaveBeenCalledWith({
-        discordId,
-        username,
-        globalName,
-      });
-      expect(rewardRepository.getRewardableChannel).toHaveBeenCalledWith(
-        channelId
-      );
-      expect(userRepository.updatePoints).toHaveBeenCalledWith(1, 11);
-      expect(rewardRepository.createRewardHistory).toHaveBeenCalledWith({
-        discordUserId: 1,
-        amount: 1,
-        type: "message",
-        reason: "message 활동 보상",
-        discordEventId: undefined,
-      });
-      expect(levelRepository.calculateLevelFromReward).toHaveBeenCalledWith(11);
-      expect(result).toEqual({
-        success: true,
-        rewardAmount: 1,
-        newTotalReward: 11,
-        leveledUp: false,
-        newLevel: undefined,
-        assignedRoleId: undefined,
-      });
-    });
-
-    it("레벨업 시 역할을 부여하고 DM을 전송해야 한다", async () => {
-      // Given (준비)
-      const discordId = "123456789";
-      const username = "testuser";
-      const globalName = "Test User";
-      const channelId = "987654321";
-      const eventType = "forum_post";
-
-      userRepository.findOrCreate.mockResolvedValue(mockUser);
-      rewardRepository.getRewardableChannel.mockResolvedValue(mockChannel);
-      userRepository.updatePoints.mockResolvedValue({
-        ...mockUser,
-        currentReward: 13,
-      });
-      levelRepository.calculateLevelFromReward.mockResolvedValue(2); // 레벨 업!
-      levelRepository.getRoleForLevel.mockResolvedValue(mockRole);
-      levelRepository.findByLevelNumber.mockResolvedValue({
-        id: 2,
-        levelNumber: 2,
-        requiredRewardAmount: 5,
-        levelName: "Regular",
-        discordRoleTableId: 1,
-        createdAt: new Date(),
-      });
-      rewardRepository.createRewardHistory.mockResolvedValue({
-        id: 1,
-        discordUserId: 1,
-        amount: 3,
-        type: "forum_post",
-        reason: "forum_post 활동 보상",
-        discordEventId: null,
-        createdAt: new Date(),
-      });
-      discordService.assignRoleToUser.mockResolvedValue();
-      discordService.sendDirectMessage.mockResolvedValue(true);
-
-      // When (실행)
-      const result = await useCase.execute(
-        discordId,
-        username,
-        globalName,
-        channelId,
-        eventType
-      );
-
-      // Then (검증)
-      expect(userRepository.updateLevel).toHaveBeenCalledWith(1, 2);
-      expect(levelRepository.getRoleForLevel).toHaveBeenCalledWith(2);
-      expect(discordService.assignRoleToUser).toHaveBeenCalledWith(
-        discordId,
-        mockRole.discordRoleId
-      );
-      expect(discordService.sendDirectMessage).toHaveBeenCalledWith(
-        discordId,
-        "🎉 축하합니다! 레벨 2(Regular)에 도달했습니다!"
-      );
-      expect(result).toEqual({
-        success: true,
-        rewardAmount: 3,
-        newTotalReward: 13,
-        leveledUp: true,
-        newLevel: 2,
-        assignedRoleId: mockRole.discordRoleId,
-      });
-    });
-
-    it("보상 대상이 아닌 채널에서는 보상을 지급하지 않아야 한다", async () => {
-      // Given (준비)
-      const discordId = "123456789";
-      const username = "testuser";
-      const globalName = "Test User";
-      const channelId = "987654321";
-      const eventType = "message";
-
-      userRepository.findOrCreate.mockResolvedValue(mockUser);
-      rewardRepository.getRewardableChannel.mockResolvedValue(null); // 보상 대상 채널 없음
-
-      // When (실행)
-      const result = await useCase.execute(
-        discordId,
-        username,
-        globalName,
-        channelId,
-        eventType
-      );
-
-      // Then (검증)
-      expect(userRepository.findOrCreate).toHaveBeenCalledWith({
-        discordId,
-        username,
-        globalName,
-      });
-      expect(rewardRepository.getRewardableChannel).toHaveBeenCalledWith(
-        channelId
-      );
-      expect(userRepository.updatePoints).not.toHaveBeenCalled();
-      expect(rewardRepository.createRewardHistory).not.toHaveBeenCalled();
-      expect(result).toEqual({
-        success: false,
-        rewardAmount: 0,
-        newTotalReward: mockUser.currentReward,
-        leveledUp: false,
-      });
-    });
-
-    it("비활성화된 채널에서는 보상을 지급하지 않아야 한다", async () => {
-      // Given (준비)
-      const discordId = "123456789";
-      const username = "testuser";
-      const globalName = "Test User";
-      const channelId = "987654321";
-      const eventType = "message";
-
-      userRepository.findOrCreate.mockResolvedValue(mockUser);
-      rewardRepository.getRewardableChannel.mockResolvedValue({
-        ...mockChannel,
-        isActive: false, // 비활성화된 채널
-      });
-
-      // When (실행)
-      const result = await useCase.execute(
-        discordId,
-        username,
-        globalName,
-        channelId,
-        eventType
-      );
-
-      // Then (검증)
-      expect(result).toEqual({
-        success: false,
-        rewardAmount: 0,
-        newTotalReward: mockUser.currentReward,
-        leveledUp: false,
-      });
-    });
-  });
-
-  describe("executeManualReward", () => {
-    it("수동 보상을 정상적으로 지급해야 한다", async () => {
-      // Given (준비)
-      const discordId = "123456789";
-      const amount = 5;
-      const reason = "관리자 수동 보상";
-
-      userRepository.findByDiscordId.mockResolvedValue(mockUser);
-      userRepository.updatePoints.mockResolvedValue({
-        ...mockUser,
-        currentReward: 15,
-      });
-      levelRepository.calculateLevelFromReward.mockResolvedValue(1);
-      rewardRepository.createRewardHistory.mockResolvedValue({
+      (userRepository.updatePoints as any).mockResolvedValue(updatedUser);
+      (levelRepository.calculateLevelFromReward as any).mockResolvedValue(1); // 레벨업 없음
+      (levelRepository.findByLevelNumber as any).mockResolvedValue(mockLevel);
+      (rewardRepository.createRewardHistory as any).mockResolvedValue({
         id: 1,
         discordUserId: 1,
         amount: 5,
-        type: "manual",
-        reason: "관리자 수동 보상",
+        type: "message",
+        reason: "message 활동 보상",
         discordEventId: null,
         createdAt: new Date(),
       });
 
-      // When (실행)
-      const result = await useCase.executeManualReward(
-        discordId,
-        amount,
-        reason
+      // Act: useCase.execute 실행
+      const result = await useCase.execute(
+        "user123",
+        "testuser",
+        "Test User",
+        "channel123",
+        "message" as RewardType
       );
 
-      // Then (검증)
-      expect(userRepository.findByDiscordId).toHaveBeenCalledWith(discordId);
+      // Assert: 모든 메서드 호출과 결과 검증
+      expect(userRepository.findOrCreate).toHaveBeenCalledWith({
+        discordId: "user123",
+        username: "testuser",
+        globalName: "Test User",
+      });
+      expect(rewardRepository.getRewardableChannel).toHaveBeenCalledWith(
+        "channel123"
+      );
       expect(userRepository.updatePoints).toHaveBeenCalledWith(1, 15);
       expect(rewardRepository.createRewardHistory).toHaveBeenCalledWith({
         discordUserId: 1,
         amount: 5,
-        type: "manual",
-        reason: "관리자 수동 보상",
+        type: "message",
+        reason: "message 활동 보상",
+        discordEventId: undefined,
       });
+      expect(discordService.assignRoleToUser).not.toHaveBeenCalled();
       expect(result).toEqual({
         success: true,
         rewardAmount: 5,
@@ -350,17 +173,258 @@ describe("GrantRewardUseCase", () => {
       });
     });
 
-    it("존재하지 않는 사용자에게는 수동 보상을 지급할 수 없어야 한다", async () => {
-      // Given (준비)
-      const discordId = "123456789";
-      const amount = 5;
-      const reason = "관리자 수동 보상";
+    it("should level up the user, assign a role, and send a DM when enough points are accumulated", async () => {
+      // Arrange: 레벨업이 가능한 상황 설정
+      const updatedUser = { ...mockUser, currentReward: 15 };
+      const levelTwoMock = {
+        ...mockLevel,
+        levelNumber: 2,
+        levelName: "Regular",
+      };
 
-      userRepository.findByDiscordId.mockResolvedValue(null); // 사용자 없음
+      (userRepository.findOrCreate as any).mockResolvedValue(mockUser);
+      (rewardRepository.getRewardableChannel as any).mockResolvedValue(
+        mockChannel
+      );
+      (userRepository.updatePoints as any).mockResolvedValue(updatedUser);
+      (levelRepository.calculateLevelFromReward as any).mockResolvedValue(2); // 레벨업
+      (levelRepository.getRoleForLevel as any).mockResolvedValue(mockRole);
+      (levelRepository.findByLevelNumber as any).mockResolvedValue(
+        levelTwoMock
+      );
+      (rewardRepository.createRewardHistory as any).mockResolvedValue({
+        id: 1,
+        discordUserId: 1,
+        amount: 5,
+        type: "message",
+        reason: "message 활동 보상",
+        discordEventId: null,
+        createdAt: new Date(),
+      });
+      (userRepository.updateLevel as any).mockResolvedValue(updatedUser);
+      (discordService.assignRoleToUser as any).mockResolvedValue(undefined);
+      (discordService.sendDirectMessage as any).mockResolvedValue(true);
 
-      // When & Then (실행 및 검증)
+      // Act: useCase.execute 실행
+      const result = await useCase.execute(
+        "user123",
+        "testuser",
+        "Test User",
+        "channel123",
+        "message" as RewardType
+      );
+
+      // Assert: 레벨업 관련 메서드 호출 검증
+      expect(userRepository.updateLevel).toHaveBeenCalledWith(1, 2);
+      expect(levelRepository.getRoleForLevel).toHaveBeenCalledWith(2);
+      expect(discordService.assignRoleToUser).toHaveBeenCalledWith(
+        "user123",
+        "role123"
+      );
+      expect(discordService.sendDirectMessage).toHaveBeenCalledWith(
+        "user123",
+        "🎉 축하합니다! 레벨 2(Regular)에 도달했습니다!"
+      );
+      expect(result).toEqual({
+        success: true,
+        rewardAmount: 5,
+        newTotalReward: 15,
+        leveledUp: true,
+        newLevel: 2,
+        assignedRoleId: "role123",
+      });
+    });
+
+    it("should level up without assigning a role if the new level has no associated role", async () => {
+      // Arrange: 레벨업은 하지만 역할이 없는 상황
+      const updatedUser = { ...mockUser, currentReward: 15 };
+      const levelTwoMock = {
+        ...mockLevel,
+        levelNumber: 2,
+        levelName: "Regular",
+      };
+
+      (userRepository.findOrCreate as any).mockResolvedValue(mockUser);
+      (rewardRepository.getRewardableChannel as any).mockResolvedValue(
+        mockChannel
+      );
+      (userRepository.updatePoints as any).mockResolvedValue(updatedUser);
+      (levelRepository.calculateLevelFromReward as any).mockResolvedValue(2);
+      (levelRepository.getRoleForLevel as any).mockResolvedValue(null);
+      (levelRepository.findByLevelNumber as any).mockResolvedValue(
+        levelTwoMock
+      );
+      (rewardRepository.createRewardHistory as any).mockResolvedValue({
+        id: 1,
+        discordUserId: 1,
+        amount: 5,
+        type: "message",
+        reason: "message 활동 보상",
+        discordEventId: null,
+        createdAt: new Date(),
+      });
+      (userRepository.updateLevel as any).mockResolvedValue(updatedUser);
+      (discordService.sendDirectMessage as any).mockResolvedValue(true);
+
+      // Act: useCase.execute 실행
+      const result = await useCase.execute(
+        "user123",
+        "testuser",
+        "Test User",
+        "channel123",
+        "message" as RewardType
+      );
+
+      // Assert: 역할 부여가 없는 레벨업 검증
+      expect(discordService.assignRoleToUser).not.toHaveBeenCalled();
+      expect(discordService.sendDirectMessage).not.toHaveBeenCalled(); // 역할이 없으면 DM도 전송되지 않음
+      expect(result).toEqual({
+        success: true,
+        rewardAmount: 5,
+        newTotalReward: 15,
+        leveledUp: true,
+        newLevel: 2,
+        assignedRoleId: undefined,
+      });
+    });
+
+    it("should do nothing if the channel is not rewardable (returns null)", async () => {
+      // Arrange: 보상 불가능한 채널 상황
+      (userRepository.findOrCreate as any).mockResolvedValue(mockUser);
+      (rewardRepository.getRewardableChannel as any).mockResolvedValue(null);
+
+      // Act: useCase.execute 실행
+      const result = await useCase.execute(
+        "user123",
+        "testuser",
+        "Test User",
+        "channel123",
+        "message" as RewardType
+      );
+
+      // Assert: 보상 처리가 일어나지 않았는지 검증
+      expect(userRepository.updatePoints).not.toHaveBeenCalled();
+      expect(rewardRepository.createRewardHistory).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        success: false,
+        rewardAmount: 0,
+        newTotalReward: 10,
+        leveledUp: false,
+      });
+    });
+
+    it("should do nothing if the channel is inactive", async () => {
+      // Arrange: 비활성 채널 상황
+      const inactiveChannel = { ...mockChannel, isActive: false };
+
+      (userRepository.findOrCreate as any).mockResolvedValue(mockUser);
+      (rewardRepository.getRewardableChannel as any).mockResolvedValue(
+        inactiveChannel
+      );
+
+      // Act: useCase.execute 실행
+      const result = await useCase.execute(
+        "user123",
+        "testuser",
+        "Test User",
+        "channel123",
+        "message" as RewardType
+      );
+
+      // Assert: 보상 처리가 일어나지 않았는지 검증
+      expect(userRepository.updatePoints).not.toHaveBeenCalled();
+      expect(rewardRepository.createRewardHistory).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        success: false,
+        rewardAmount: 0,
+        newTotalReward: 10,
+        leveledUp: false,
+      });
+    });
+
+    it("should do nothing if the reward amount for the event type is zero", async () => {
+      // Arrange: 보상 금액이 0인 상황
+      const zeroRewardChannel = { ...mockChannel, messageRewardAmount: 0 };
+
+      (userRepository.findOrCreate as any).mockResolvedValue(mockUser);
+      (rewardRepository.getRewardableChannel as any).mockResolvedValue(
+        zeroRewardChannel
+      );
+
+      // Act: useCase.execute 실행
+      const result = await useCase.execute(
+        "user123",
+        "testuser",
+        "Test User",
+        "channel123",
+        "message" as RewardType
+      );
+
+      // Assert: 보상 처리가 일어나지 않았는지 검증
+      expect(userRepository.updatePoints).not.toHaveBeenCalled();
+      expect(rewardRepository.createRewardHistory).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        success: false,
+        rewardAmount: 0,
+        newTotalReward: 10,
+        leveledUp: false,
+      });
+    });
+  });
+
+  // --- 시나리오 그룹 2: 수동 보상 (executeManualReward) ---
+  describe("executeManualReward", () => {
+    it("should grant manual points to an existing user", async () => {
+      // Arrange: 관리자가 사용자에게 수동으로 포인트를 지급하는 상황
+      const updatedUser = { ...mockUser, currentReward: 20 };
+
+      (userRepository.findByDiscordId as any).mockResolvedValue(mockUser);
+      (userRepository.updatePoints as any).mockResolvedValue(updatedUser);
+      (levelRepository.calculateLevelFromReward as any).mockResolvedValue(1);
+      (levelRepository.findByLevelNumber as any).mockResolvedValue(mockLevel);
+      (rewardRepository.createRewardHistory as any).mockResolvedValue({
+        id: 1,
+        discordUserId: 1,
+        amount: 10,
+        type: "manual",
+        reason: "관리자 수동 보상",
+        discordEventId: null,
+        createdAt: new Date(),
+      });
+
+      // Act: useCase.executeManualReward 실행
+      const result = await useCase.executeManualReward(
+        "user123",
+        10,
+        "관리자 수동 보상"
+      );
+
+      // Assert: 수동 보상 처리 검증
+      expect(userRepository.findByDiscordId).toHaveBeenCalledWith("user123");
+      expect(userRepository.updatePoints).toHaveBeenCalledWith(1, 20);
+      expect(rewardRepository.createRewardHistory).toHaveBeenCalledWith({
+        discordUserId: 1,
+        amount: 10,
+        type: "manual",
+        reason: "관리자 수동 보상",
+      });
+      expect(result).toEqual({
+        success: true,
+        rewardAmount: 10,
+        newTotalReward: 20,
+        leveledUp: false,
+        newLevel: undefined,
+        assignedRoleId: undefined,
+      });
+    });
+
+    it("should throw an error if trying to grant manual reward to a non-existent user", async () => {
+      // Arrange: 존재하지 않는 사용자에게 보상을 시도하는 상황
+      (userRepository.findByDiscordId as any).mockResolvedValue(null);
+
+      // Act & Assert: 에러 발생 검증
       await expect(
-        useCase.executeManualReward(discordId, amount, reason)
+        useCase.executeManualReward("nonexistent", 10, "관리자 수동 보상")
       ).rejects.toThrow("사용자를 찾을 수 없습니다.");
     });
   });

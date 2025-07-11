@@ -1,0 +1,12 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+## Must
+
+You MUST follow these rules:
+
+- use pnpm
+- be sure to every test succeed

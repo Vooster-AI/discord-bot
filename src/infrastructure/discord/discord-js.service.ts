@@ -141,7 +141,7 @@ export class DiscordJsService implements IDiscordService {
 
       return {
         id: channel.id,
-        name: "name" in channel ? channel.name : "Unknown",
+        name: ("name" in channel && channel.name) || "Unknown",
         type: channel.type.toString(),
       };
     } catch (error) {

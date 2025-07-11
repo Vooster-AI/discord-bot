@@ -2,6 +2,7 @@
   "name": "discord-bot",
   "version": "1.0.0",
   "description": "Discord Bot Server with TypeScript",
+  "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev src/index.ts",
@@ -10,9 +11,9 @@
     "prisma:generate": "pnpm prisma generate",
     "prisma:migrate": "pnpm prisma migrate dev",
     "deploy-commands": "ts-node-dev src/bot/deploy-commands.ts",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [
     "discord",
@@ -32,10 +33,13 @@
     "@types/express": "^4.17.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^20.0.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "happy-dom": "^18.0.1",
     "jest": "^30.0.4",
     "prisma": "^5.0.0",
     "ts-jest": "^29.4.0",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^3.2.4"
   }
 }

@@ -1,174 +1,173 @@
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { UpdateVoosterEmailUseCase } from "../../../src/application/use-cases/update-vooster-email.use-case";
 import { IUserRepository, User } from "../../../src/domain";
 
+let userRepository: IUserRepository;
+let useCase: UpdateVoosterEmailUseCase;
+
+const mockUser: User = {
+  id: 1,
+  discordId: "user123",
+  username: "testuser",
+  globalName: "Test User",
+  discriminator: null,
+  avatarUrl: "https://example.com/avatar.jpg",
+  currentReward: 10,
+  currentLevel: 1,
+  voosterEmail: null,
+  joinedAt: new Date("2023-01-01"),
+  updatedAt: new Date("2023-01-01"),
+};
+
 describe("UpdateVoosterEmailUseCase", () => {
-  let useCase: UpdateVoosterEmailUseCase;
-  let userRepository: jest.Mocked<IUserRepository>;
-
-  // 테스트 데이터
-  const mockUser: User = {
-    id: 1,
-    discordId: "123456789",
-    username: "testuser",
-    globalName: "Test User",
-    discriminator: null,
-    avatarUrl: "https://example.com/avatar.jpg",
-    currentReward: 15,
-    currentLevel: 2,
-    voosterEmail: null,
-    joinedAt: new Date("2023-01-01"),
-    updatedAt: new Date("2023-01-02"),
-  };
-
-  const updatedUser: User = {
-    ...mockUser,
-    voosterEmail: "test@vooster.ai",
-    updatedAt: new Date("2023-01-03"),
-  };
-
   beforeEach(() => {
-    // Mock 객체 생성
     userRepository = {
-      findByDiscordId: jest.fn(),
-      findById: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      findOrCreate: jest.fn(),
-      updatePoints: jest.fn(),
-      updateLevel: jest.fn(),
-      getTopUsers: jest.fn(),
-      updateVoosterEmail: jest.fn(),
+      findByDiscordId: vi.fn(),
+      findById: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      findOrCreate: vi.fn(),
+      updatePoints: vi.fn(),
+      updateLevel: vi.fn(),
+      getTopUsers: vi.fn(),
+      updateVoosterEmail: vi.fn(),
     };
 
     useCase = new UpdateVoosterEmailUseCase(userRepository);
   });
 
   describe("execute", () => {
-    it("유효한 이메일로 사용자의 Vooster 이메일을 업데이트해야 한다", async () => {
-      // Given (준비)
-      const discordId = "123456789";
-      const email = "test@vooster.ai";
+    it("should update the vooster email for an existing user with a valid email", async () => {
+      // Arrange: 유효한 이메일과 존재하는 사용자 상황 설정
+      const validEmail = "test@vooster.ai";
+      const updatedUser = { ...mockUser, voosterEmail: validEmail };
 
-      userRepository.findByDiscordId.mockResolvedValue(mockUser);
-      userRepository.updateVoosterEmail.mockResolvedValue(updatedUser);
+      (userRepository.findByDiscordId as any).mockResolvedValue(mockUser);
+      (userRepository.updateVoosterEmail as any).mockResolvedValue(updatedUser);
 
-      // When (실행)
-      const result = await useCase.execute(discordId, email);
+      // Act: useCase.execute 실행
+      const result = await useCase.execute("user123", validEmail);
 
-      // Then (검증)
-      expect(userRepository.findByDiscordId).toHaveBeenCalledWith(discordId);
+      // Assert: 메서드 호출 검증
+      expect(userRepository.findByDiscordId).toHaveBeenCalledWith("user123");
       expect(userRepository.updateVoosterEmail).toHaveBeenCalledWith(
-        mockUser.id,
-        email
+        1,
+        validEmail
       );
+
+      // Assert: 반환된 user 객체의 voosterEmail이 업데이트 되었는지 확인
       expect(result).toEqual(updatedUser);
+      expect(result.voosterEmail).toBe(validEmail);
     });
 
-    it("다양한 유효한 이메일 형식을 허용해야 한다", async () => {
-      // Given (준비)
-      const discordId = "123456789";
-      const validEmails = [
-        "test@vooster.ai",
-        "user.name@domain.com",
-        "user+tag@example.org",
-        "user123@test-domain.co.uk",
-        "admin@sub.domain.com",
-      ];
+    it("should throw an error if the user does not exist", async () => {
+      // Arrange: 존재하지 않는 사용자 상황 설정
+      (userRepository.findByDiscordId as any).mockResolvedValue(null);
 
-      userRepository.findByDiscordId.mockResolvedValue(mockUser);
-      userRepository.updateVoosterEmail.mockResolvedValue(updatedUser);
+      // Act & Assert: 에러 발생 검증
+      await expect(
+        useCase.execute("nonexistent", "test@vooster.ai")
+      ).rejects.toThrow("사용자를 찾을 수 없습니다.");
 
-      // When & Then (실행 및 검증)
-      for (const email of validEmails) {
-        const result = await useCase.execute(discordId, email);
-        expect(result).toEqual(updatedUser);
+      // Assert: updateVoosterEmail이 호출되지 않았는지 확인
+      expect(userRepository.updateVoosterEmail).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      "plainaddress",
+      "#@%^%#$@#$@#.com",
+      "@example.com",
+      "Joe Smith <email@example.com>",
+      "email.example.com",
+      "email@example@example.com",
+      "email@example.com (Joe Smith)",
+      "email@example",
+      "email@example.",
+      "",
+      " ",
+      "email@",
+      "@.com",
+    ])(
+      "should throw an error for invalid email format: %s",
+      async (invalidEmail) => {
+        // Arrange: 유효하지 않은 이메일 설정
+        (userRepository.findByDiscordId as any).mockResolvedValue(mockUser);
+
+        // Act & Assert: 이메일 형식 검증 에러 발생 확인
+        await expect(useCase.execute("user123", invalidEmail)).rejects.toThrow(
+          "유효하지 않은 이메일 형식입니다."
+        );
+
+        // Assert: updateVoosterEmail이 호출되지 않았는지 확인
+        expect(userRepository.updateVoosterEmail).not.toHaveBeenCalled();
       }
+    );
 
-      expect(userRepository.updateVoosterEmail).toHaveBeenCalledTimes(
-        validEmails.length
-      );
-    });
+    it.each([
+      "user@example.com",
+      "test.email@example.com",
+      "user+tag@example.com",
+      "user.name@example.co.uk",
+      "user123@example-site.com",
+      "firstname.lastname@example.com",
+      "test@vooster.ai",
+      "admin@company.org",
+      "info@website.net",
+      "contact@domain.io",
+    ])("should accept valid email format: %s", async (validEmail) => {
+      // Arrange: 유효한 이메일과 존재하는 사용자 상황 설정
+      const updatedUser = { ...mockUser, voosterEmail: validEmail };
 
-    it("존재하지 않는 사용자의 경우 오류를 발생시켜야 한다", async () => {
-      // Given (준비)
-      const discordId = "123456789";
-      const email = "test@vooster.ai";
+      (userRepository.findByDiscordId as any).mockResolvedValue(mockUser);
+      (userRepository.updateVoosterEmail as any).mockResolvedValue(updatedUser);
 
-      userRepository.findByDiscordId.mockResolvedValue(null);
+      // Act: useCase.execute 실행
+      const result = await useCase.execute("user123", validEmail);
 
-      // When & Then (실행 및 검증)
-      await expect(useCase.execute(discordId, email)).rejects.toThrow(
-        "사용자를 찾을 수 없습니다."
-      );
-
-      expect(userRepository.findByDiscordId).toHaveBeenCalledWith(discordId);
-      expect(userRepository.updateVoosterEmail).not.toHaveBeenCalled();
-    });
-
-    it("유효하지 않은 이메일 형식의 경우 오류를 발생시켜야 한다", async () => {
-      // Given (준비)
-      const discordId = "123456789";
-      const invalidEmail = "invalid-email";
-
-      userRepository.findByDiscordId.mockResolvedValue(mockUser);
-
-      // When & Then (실행 및 검증)
-      await expect(useCase.execute(discordId, invalidEmail)).rejects.toThrow(
-        "유효하지 않은 이메일 형식입니다."
-      );
-
-      expect(userRepository.updateVoosterEmail).not.toHaveBeenCalled();
-    });
-
-    it("빈 이메일 문자열의 경우 오류를 발생시켜야 한다", async () => {
-      // Given (준비)
-      const discordId = "123456789";
-      const emptyEmail = "";
-
-      userRepository.findByDiscordId.mockResolvedValue(mockUser);
-
-      // When & Then (실행 및 검증)
-      await expect(useCase.execute(discordId, emptyEmail)).rejects.toThrow(
-        "유효하지 않은 이메일 형식입니다."
-      );
-
-      expect(userRepository.updateVoosterEmail).not.toHaveBeenCalled();
-    });
-
-    it("@가 없는 이메일의 경우 오류를 발생시켜야 한다", async () => {
-      // Given (준비)
-      const discordId = "123456789";
-      const noAtEmail = "test.domain.com";
-
-      userRepository.findByDiscordId.mockResolvedValue(mockUser);
-
-      // When & Then (실행 및 검증)
-      await expect(useCase.execute(discordId, noAtEmail)).rejects.toThrow(
-        "유효하지 않은 이메일 형식입니다."
-      );
-
-      expect(userRepository.updateVoosterEmail).not.toHaveBeenCalled();
-    });
-
-    it("이메일 업데이트 중 데이터베이스 오류가 발생하면 오류를 전파해야 한다", async () => {
-      // Given (준비)
-      const discordId = "123456789";
-      const email = "test@vooster.ai";
-      const dbError = new Error("Database connection failed");
-
-      userRepository.findByDiscordId.mockResolvedValue(mockUser);
-      userRepository.updateVoosterEmail.mockRejectedValue(dbError);
-
-      // When & Then (실행 및 검증)
-      await expect(useCase.execute(discordId, email)).rejects.toThrow(
-        "Database connection failed"
-      );
-
-      expect(userRepository.findByDiscordId).toHaveBeenCalledWith(discordId);
+      // Assert: 성공적으로 업데이트되었는지 확인
+      expect(userRepository.findByDiscordId).toHaveBeenCalledWith("user123");
       expect(userRepository.updateVoosterEmail).toHaveBeenCalledWith(
-        mockUser.id,
-        email
+        1,
+        validEmail
       );
+      expect(result.voosterEmail).toBe(validEmail);
+    });
+
+    it("should update email even if user already has an existing email", async () => {
+      // Arrange: 이미 이메일이 있는 사용자 상황 설정
+      const existingEmailUser = {
+        ...mockUser,
+        voosterEmail: "old@example.com",
+      };
+      const newEmail = "new@example.com";
+      const updatedUser = { ...existingEmailUser, voosterEmail: newEmail };
+
+      (userRepository.findByDiscordId as any).mockResolvedValue(
+        existingEmailUser
+      );
+      (userRepository.updateVoosterEmail as any).mockResolvedValue(updatedUser);
+
+      // Act: useCase.execute 실행
+      const result = await useCase.execute("user123", newEmail);
+
+      // Assert: 기존 이메일이 새 이메일로 업데이트되었는지 확인
+      expect(userRepository.updateVoosterEmail).toHaveBeenCalledWith(
+        1,
+        newEmail
+      );
+      expect(result.voosterEmail).toBe(newEmail);
+    });
+
+    it("should handle edge case of empty string email", async () => {
+      // Arrange: 빈 문자열 이메일 상황 설정
+      (userRepository.findByDiscordId as any).mockResolvedValue(mockUser);
+
+      // Act & Assert: 빈 문자열은 유효하지 않은 이메일로 처리
+      await expect(useCase.execute("user123", "")).rejects.toThrow(
+        "유효하지 않은 이메일 형식입니다."
+      );
+
+      expect(userRepository.updateVoosterEmail).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,103 +1,103 @@
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { GetUserProfileUseCase } from "../../../src/application/use-cases/get-user-profile.use-case";
 import {
   IUserRepository,
   ILevelRepository,
   IRewardRepository,
   User,
-  Level,
   LevelProgress,
   RewardHistory,
+  Level,
 } from "../../../src/domain";
 
-describe("GetUserProfileUseCase", () => {
-  let useCase: GetUserProfileUseCase;
-  let userRepository: jest.Mocked<IUserRepository>;
-  let levelRepository: jest.Mocked<ILevelRepository>;
-  let rewardRepository: jest.Mocked<IRewardRepository>;
+let userRepository: IUserRepository;
+let levelRepository: ILevelRepository;
+let rewardRepository: IRewardRepository;
+let useCase: GetUserProfileUseCase;
 
-  // 테스트 데이터
-  const mockUser: User = {
+// Mock 데이터 정의
+const mockUser: User = {
+  id: 1,
+  discordId: "user123",
+  username: "testuser",
+  globalName: "Test User",
+  discriminator: null,
+  avatarUrl: "https://example.com/avatar.jpg",
+  currentReward: 10,
+  currentLevel: 1,
+  voosterEmail: null,
+  joinedAt: new Date("2023-01-01"),
+  updatedAt: new Date("2023-01-01"),
+};
+
+const mockLevelProgress: LevelProgress = {
+  currentLevelReward: 0,
+  nextLevelReward: 15,
+  progress: 10,
+  progressPercentage: 66.67,
+};
+
+const mockNextLevel: Level = {
+  id: 2,
+  levelNumber: 2,
+  requiredRewardAmount: 15,
+  levelName: "Regular",
+  discordRoleTableId: null,
+  createdAt: new Date("2023-01-01"),
+};
+
+const mockRewards: RewardHistory[] = [
+  {
     id: 1,
-    discordId: "123456789",
-    username: "testuser",
-    globalName: "Test User",
-    discriminator: null,
-    avatarUrl: "https://example.com/avatar.jpg",
-    currentReward: 15,
-    currentLevel: 2,
-    voosterEmail: "test@vooster.ai",
-    joinedAt: new Date("2023-01-01"),
-    updatedAt: new Date("2023-01-02"),
-  };
+    discordUserId: 1,
+    amount: 5,
+    type: "message",
+    reason: "message 활동 보상",
+    discordEventId: null,
+    createdAt: new Date("2023-01-01"),
+  },
+  {
+    id: 2,
+    discordUserId: 1,
+    amount: 3,
+    type: "comment",
+    reason: "comment 활동 보상",
+    discordEventId: null,
+    createdAt: new Date("2023-01-02"),
+  },
+];
 
-  const mockLevelProgress: LevelProgress = {
-    currentLevelReward: 5,
-    nextLevelReward: 50,
-    progress: 10,
-    progressPercentage: 22.22,
-  };
-
-  const mockNextLevel: Level = {
-    id: 3,
-    levelNumber: 3,
-    requiredRewardAmount: 50,
-    levelName: "Active",
-    discordRoleTableId: 2,
-    createdAt: new Date(),
-  };
-
-  const mockRewardHistory: RewardHistory[] = [
-    {
-      id: 1,
-      discordUserId: 1,
-      amount: 3,
-      type: "forum_post",
-      reason: "forum_post 활동 보상",
-      discordEventId: null,
-      createdAt: new Date("2023-01-02"),
-    },
-    {
-      id: 2,
-      discordUserId: 1,
-      amount: 1,
-      type: "message",
-      reason: "message 활동 보상",
-      discordEventId: null,
-      createdAt: new Date("2023-01-01"),
-    },
-  ];
-
+describe("GetUserProfileUseCase", () => {
   beforeEach(() => {
-    // Mock 객체 생성
     userRepository = {
-      findByDiscordId: jest.fn(),
-      findById: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      findOrCreate: jest.fn(),
-      updatePoints: jest.fn(),
-      updateLevel: jest.fn(),
-      getTopUsers: jest.fn(),
-      updateVoosterEmail: jest.fn(),
+      findByDiscordId: vi.fn(),
+      findById: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      findOrCreate: vi.fn(),
+      updatePoints: vi.fn(),
+      updateLevel: vi.fn(),
+      getTopUsers: vi.fn(),
+      updateVoosterEmail: vi.fn(),
     };
 
     levelRepository = {
-      calculateLevelFromReward: jest.fn(),
-      getCurrentLevel: jest.fn(),
-      getNextLevel: jest.fn(),
-      findByLevelNumber: jest.fn(),
-      getAllLevels: jest.fn(),
-      calculateProgress: jest.fn(),
-      getRoleForLevel: jest.fn(),
+      calculateLevelFromReward: vi.fn(),
+      getCurrentLevel: vi.fn(),
+      getNextLevel: vi.fn(),
+      findByLevelNumber: vi.fn(),
+      getAllLevels: vi.fn(),
+      calculateProgress: vi.fn(),
+      getRoleForLevel: vi.fn(),
     };
 
     rewardRepository = {
-      createRewardHistory: jest.fn(),
-      getRewardHistory: jest.fn(),
-      getRewardableChannel: jest.fn(),
-      getRewardableChannels: jest.fn(),
-      upsertRewardableChannel: jest.fn(),
-      getChannelRewardStats: jest.fn(),
+      createRewardHistory: vi.fn(),
+      getRewardHistory: vi.fn(),
+      getRewardableChannel: vi.fn(),
+      getRewardableChannels: vi.fn(),
+      upsertRewardableChannel: vi.fn(),
+      getChannelRewardStats: vi.fn(),
     };
 
     useCase = new GetUserProfileUseCase(
@@ -107,148 +107,128 @@ describe("GetUserProfileUseCase", () => {
     );
   });
 
-  describe("execute", () => {
-    it("사용자 프로필을 정상적으로 조회해야 한다", async () => {
-      // Given (준비)
-      const discordId = "123456789";
-
-      userRepository.findByDiscordId.mockResolvedValue(mockUser);
-      levelRepository.calculateProgress.mockResolvedValue(mockLevelProgress);
-      levelRepository.getNextLevel.mockResolvedValue(mockNextLevel);
-      rewardRepository.getRewardHistory.mockResolvedValue(mockRewardHistory);
-
-      // When (실행)
-      const result = await useCase.execute(discordId);
-
-      // Then (검증)
-      expect(userRepository.findByDiscordId).toHaveBeenCalledWith(discordId);
-      expect(levelRepository.calculateProgress).toHaveBeenCalledWith(
-        mockUser.currentReward,
-        mockUser.currentLevel
+  // --- 시나리오 그룹 1: 프로필 조회 (execute) ---
+  describe("execute (Get Profile)", () => {
+    it("should return a complete user profile for an existing user", async () => {
+      // Arrange: 모든 데이터가 정상적으로 존재하는 상황 설정
+      (userRepository.findByDiscordId as any).mockResolvedValue(mockUser);
+      (levelRepository.calculateProgress as any).mockResolvedValue(
+        mockLevelProgress
       );
-      expect(levelRepository.getNextLevel).toHaveBeenCalledWith(
-        mockUser.currentLevel
-      );
-      expect(rewardRepository.getRewardHistory).toHaveBeenCalledWith(
-        mockUser.id,
-        5
-      );
+      (levelRepository.getNextLevel as any).mockResolvedValue(mockNextLevel);
+      (rewardRepository.getRewardHistory as any).mockResolvedValue(mockRewards);
 
+      // Act: useCase.execute 실행
+      const result = await useCase.execute("user123");
+
+      // Assert: 각 repository의 메서드가 정확한 인자로 호출되었는지 확인
+      expect(userRepository.findByDiscordId).toHaveBeenCalledWith("user123");
+      expect(levelRepository.calculateProgress).toHaveBeenCalledWith(10, 1);
+      expect(levelRepository.getNextLevel).toHaveBeenCalledWith(1);
+      expect(rewardRepository.getRewardHistory).toHaveBeenCalledWith(1, 5);
+
+      // Assert: 반환된 객체의 모든 필드가 정확한지 확인
       expect(result).toEqual({
         user: mockUser,
         levelProgress: mockLevelProgress,
-        nextLevelName: mockNextLevel.levelName,
-        recentRewards: mockRewardHistory,
+        nextLevelName: "Regular",
+        recentRewards: mockRewards,
       });
     });
 
-    it("존재하지 않는 사용자의 경우 null을 반환해야 한다", async () => {
-      // Given (준비)
-      const discordId = "123456789";
+    it("should return null when the user does not exist", async () => {
+      // Arrange: 존재하지 않는 사용자 상황 설정
+      (userRepository.findByDiscordId as any).mockResolvedValue(null);
 
-      userRepository.findByDiscordId.mockResolvedValue(null);
+      // Act: useCase.execute 실행
+      const result = await useCase.execute("nonexistent");
 
-      // When (실행)
-      const result = await useCase.execute(discordId);
+      // Assert: 반환된 값이 null인지 확인
+      expect(result).toBeNull();
 
-      // Then (검증)
-      expect(userRepository.findByDiscordId).toHaveBeenCalledWith(discordId);
+      // Assert: levelRepository와 rewardRepository의 메서드가 호출되지 않았는지 확인
       expect(levelRepository.calculateProgress).not.toHaveBeenCalled();
       expect(levelRepository.getNextLevel).not.toHaveBeenCalled();
       expect(rewardRepository.getRewardHistory).not.toHaveBeenCalled();
-
-      expect(result).toBeNull();
     });
 
-    it("다음 레벨이 없는 경우 nextLevelName이 undefined여야 한다", async () => {
-      // Given (준비)
-      const discordId = "123456789";
+    it("should return a profile with an undefined nextLevelName if the user is at max level", async () => {
+      // Arrange: 최고 레벨 사용자 상황 설정
+      (userRepository.findByDiscordId as any).mockResolvedValue(mockUser);
+      (levelRepository.calculateProgress as any).mockResolvedValue(
+        mockLevelProgress
+      );
+      (levelRepository.getNextLevel as any).mockResolvedValue(null);
+      (rewardRepository.getRewardHistory as any).mockResolvedValue(mockRewards);
 
-      userRepository.findByDiscordId.mockResolvedValue(mockUser);
-      levelRepository.calculateProgress.mockResolvedValue(mockLevelProgress);
-      levelRepository.getNextLevel.mockResolvedValue(null); // 다음 레벨 없음
-      rewardRepository.getRewardHistory.mockResolvedValue(mockRewardHistory);
+      // Act: useCase.execute 실행
+      const result = await useCase.execute("user123");
 
-      // When (실행)
-      const result = await useCase.execute(discordId);
-
-      // Then (검증)
-      expect(result).toEqual({
-        user: mockUser,
-        levelProgress: mockLevelProgress,
-        nextLevelName: undefined,
-        recentRewards: mockRewardHistory,
-      });
+      // Assert: 반환된 객체의 nextLevelName이 undefined인지 확인
+      expect(result?.nextLevelName).toBeUndefined();
+      expect(result?.user).toEqual(mockUser);
     });
 
-    it("보상 기록이 없는 경우 빈 배열을 반환해야 한다", async () => {
-      // Given (준비)
-      const discordId = "123456789";
+    it("should return empty rewards array when user has no reward history", async () => {
+      // Arrange: 보상 기록이 없는 사용자 상황 설정
+      (userRepository.findByDiscordId as any).mockResolvedValue(mockUser);
+      (levelRepository.calculateProgress as any).mockResolvedValue(
+        mockLevelProgress
+      );
+      (levelRepository.getNextLevel as any).mockResolvedValue(mockNextLevel);
+      (rewardRepository.getRewardHistory as any).mockResolvedValue([]);
 
-      userRepository.findByDiscordId.mockResolvedValue(mockUser);
-      levelRepository.calculateProgress.mockResolvedValue(mockLevelProgress);
-      levelRepository.getNextLevel.mockResolvedValue(mockNextLevel);
-      rewardRepository.getRewardHistory.mockResolvedValue([]); // 보상 기록 없음
+      // Act: useCase.execute 실행
+      const result = await useCase.execute("user123");
 
-      // When (실행)
-      const result = await useCase.execute(discordId);
-
-      // Then (검증)
-      expect(result).toEqual({
-        user: mockUser,
-        levelProgress: mockLevelProgress,
-        nextLevelName: mockNextLevel.levelName,
-        recentRewards: [],
-      });
+      // Assert: 반환된 객체의 recentRewards가 빈 배열인지 확인
+      expect(result?.recentRewards).toEqual([]);
+      expect(result?.user).toEqual(mockUser);
     });
   });
 
+  // --- 시나리오 그룹 2: 리더보드 조회 (getLeaderboard) ---
   describe("getLeaderboard", () => {
-    it("리더보드를 정상적으로 조회해야 한다", async () => {
-      // Given (준비)
-      const limit = 10;
-      const mockUsers: User[] = [
-        { ...mockUser, currentReward: 100 },
-        { ...mockUser, id: 2, discordId: "987654321", currentReward: 50 },
-        { ...mockUser, id: 3, discordId: "555555555", currentReward: 25 },
-      ];
+    it("should return a list of top users based on the limit", async () => {
+      // Arrange: 사용자 배열 설정
+      const topUsers = [mockUser, { ...mockUser, id: 2, discordId: "user456" }];
+      (userRepository.getTopUsers as any).mockResolvedValue(topUsers);
 
-      userRepository.getTopUsers.mockResolvedValue(mockUsers);
+      // Act: useCase.getLeaderboard 실행 (limit: 5)
+      const result = await useCase.getLeaderboard(5);
 
-      // When (실행)
-      const result = await useCase.getLeaderboard(limit);
+      // Assert: userRepository.getTopUsers가 인자 5와 함께 호출되었는지 확인
+      expect(userRepository.getTopUsers).toHaveBeenCalledWith(5);
 
-      // Then (검증)
-      expect(userRepository.getTopUsers).toHaveBeenCalledWith(limit);
-      expect(result).toEqual(mockUsers);
+      // Assert: 반환된 값이 설정된 사용자 배열과 동일한지 확인
+      expect(result).toEqual(topUsers);
     });
 
-    it("기본 limit 값(10)으로 리더보드를 조회해야 한다", async () => {
-      // Given (준비)
-      const mockUsers: User[] = [mockUser];
+    it("should use a default limit of 10 if no limit is provided", async () => {
+      // Arrange: 사용자 배열 설정
+      const topUsers = [mockUser];
+      (userRepository.getTopUsers as any).mockResolvedValue(topUsers);
 
-      userRepository.getTopUsers.mockResolvedValue(mockUsers);
-
-      // When (실행)
+      // Act: useCase.getLeaderboard 실행 (인자 없음)
       const result = await useCase.getLeaderboard();
 
-      // Then (검증)
-      expect(userRepository.getTopUsers).toHaveBeenCalledWith(10); // 기본값
-      expect(result).toEqual(mockUsers);
+      // Assert: userRepository.getTopUsers가 인자 10과 함께 호출되었는지 확인
+      expect(userRepository.getTopUsers).toHaveBeenCalledWith(10);
+
+      // Assert: 반환된 값이 설정된 사용자 배열과 동일한지 확인
+      expect(result).toEqual(topUsers);
     });
 
-    it("사용자가 없는 경우 빈 배열을 반환해야 한다", async () => {
-      // Given (준비)
-      const limit = 10;
+    it("should return empty array when no users exist", async () => {
+      // Arrange: 사용자가 없는 상황 설정
+      (userRepository.getTopUsers as any).mockResolvedValue([]);
 
-      userRepository.getTopUsers.mockResolvedValue([]);
+      // Act: useCase.getLeaderboard 실행
+      const result = await useCase.getLeaderboard(5);
 
-      // When (실행)
-      const result = await useCase.getLeaderboard(limit);
-
-      // Then (검증)
-      expect(userRepository.getTopUsers).toHaveBeenCalledWith(limit);
+      // Assert: 빈 배열이 반환되는지 확인
       expect(result).toEqual([]);
+      expect(userRepository.getTopUsers).toHaveBeenCalledWith(5);
     });
   });
 });
