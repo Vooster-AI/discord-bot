@@ -10,7 +10,7 @@ import {
   logMiddleware,
 } from "../middleware/authMiddleware.js";
 
-const router = Router();
+const router: Router = Router();
 
 // 모든 라우트에 로깅 미들웨어 적용
 router.use(logMiddleware);
