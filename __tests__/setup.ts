@@ -21,6 +21,28 @@ vi.mock("discord.js", () => ({
   Collection: vi.fn(),
   REST: vi.fn(),
   Routes: vi.fn(),
+  ActivityType: {
+    Playing: 0,
+    Streaming: 1,
+    Listening: 2,
+    Watching: 3,
+    Custom: 4,
+    Competing: 5,
+  },
+  ChannelType: {
+    GuildText: 0,
+    DM: 1,
+    GuildVoice: 2,
+    GroupDM: 3,
+    GuildCategory: 4,
+    GuildAnnouncement: 5,
+    AnnouncementThread: 10,
+    PublicThread: 11,
+    PrivateThread: 12,
+    GuildStageVoice: 13,
+    GuildDirectory: 14,
+    GuildForum: 15,
+  },
 }));
 
 // 환경 변수 설정

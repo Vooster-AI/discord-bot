@@ -4,6 +4,9 @@ import { PORT } from "./config";
 import migrationRoutes from "./api/routes/migrationRoutes";
 import { errorMiddleware } from "./api/middleware/authMiddleware";
 
+import dotenv from "dotenv";
+dotenv.config();
+
 /**
  * Discord Bot Server 메인 엔트리 포인트
  * Discord Bot과 Express API 서버를 동시에 실행
