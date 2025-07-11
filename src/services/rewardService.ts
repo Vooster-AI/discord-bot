@@ -2,9 +2,67 @@ import { prisma } from "../utils/prisma";
 import { UserService } from "./userService";
 import { RewardHistory, RewardableChannel, PrismaClient } from "@prisma/client";
 
+// 2025년 7월 9일 오후 6:53분(KST) -> UTC 시간으로 변환 (KST는 UTC+9)
+const DOUBLE_REWARD_CUTOFF_DATE = new Date("2025-07-09T09:53:00.000Z");
+
 export class RewardService {
   /**
-   * 보상 처리 (자동)
+   * 보상 처리 (자동) - 날짜 기반 2배 보상 지원
+   */
+  static async processRewardWithDate(
+    userId: number,
+    channelId: string,
+    eventType: string,
+    messageCreatedAt: Date,
+    eventId?: number
+  ): Promise<void> {
+    try {
+      // 해당 채널이 보상 대상인지 확인
+      const channel = await prisma.rewardableChannel.findUnique({
+        where: { channelId },
+      });
+
+      if (!channel || !channel.isActive) {
+        console.log(`[RewardService] 보상 대상 채널이 아닙니다: ${channelId}`);
+        return;
+      }
+
+      // 이벤트 타입에 따른 보상 금액 계산
+      const baseRewardAmount = this.calculateRewardAmount(channel, eventType);
+
+      if (baseRewardAmount <= 0) {
+        console.log(`[RewardService] 보상 금액이 0입니다: ${eventType}`);
+        return;
+      }
+
+      // 날짜 기반 2배 보상 적용
+      const isDoubleReward = messageCreatedAt < DOUBLE_REWARD_CUTOFF_DATE;
+      const finalRewardAmount = isDoubleReward
+        ? baseRewardAmount * 2
+        : baseRewardAmount;
+      const reason = isDoubleReward
+        ? `${eventType} 활동 보상 (2배 적용)`
+        : `${eventType} 활동 보상`;
+
+      // 보상 지급
+      await this.giveReward(
+        userId,
+        finalRewardAmount,
+        eventType,
+        reason,
+        eventId
+      );
+
+      console.log(
+        `[RewardService] 보상 지급 완료: 사용자 ${userId}, ${finalRewardAmount} 포인트 (${eventType}${isDoubleReward ? ", 2배 적용" : ""})`
+      );
+    } catch (error) {
+      console.error("[RewardService] 보상 처리 오류:", error);
+    }
+  }
+
+  /**
+   * 보상 처리 (자동) - 기존 메서드 (호환성 유지)
    */
   static async processReward(
     userId: number,

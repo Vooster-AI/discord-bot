@@ -93,10 +93,11 @@ export class DiscordService {
             });
 
             // 보상 처리
-            await RewardService.processReward(
+            await RewardService.processRewardWithDate(
               user.id,
               message.channel.id,
               eventType,
+              message.createdAt,
               event.id
             );
 
@@ -198,10 +199,11 @@ export class DiscordService {
             });
 
             // 보상 처리
-            await RewardService.processReward(
+            await RewardService.processRewardWithDate(
               user.id,
               forumChannel.id,
               "forum_post",
+              thread.createdAt || new Date(),
               event.id
             );
           }
