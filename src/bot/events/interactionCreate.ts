@@ -126,7 +126,7 @@ async function handleLevelCommand(
     // 랭킹 이모지 및 텍스트
     const rankEmoji = getRankEmoji(ranking?.rank || 0);
     const rankText = ranking
-      ? `${rankEmoji} **${ranking.rank}위** / ${ranking.totalUsers}명 (상위 ${ranking.percentile}%)`
+      ? `${rankEmoji} **${ranking.rank}위** / ${ranking.totalUsers}명 (상위 ${100 - ranking.percentile}%)`
       : "순위 정보 없음";
 
     // 다음 레벨까지 필요한 포인트
