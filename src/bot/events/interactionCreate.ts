@@ -245,7 +245,7 @@ async function handleTopCommand(
       const medal = getMedalEmoji(index);
       embed.addFields({
         name: `${medal} ${index + 1}위`,
-        value: `${user.globalName || user.username}\n레벨: ${user.currentLevel} | 포인트: ${user.currentReward}`,
+        value: `${user.globalName || user.username} [레벨: ${user.currentLevel} | 포인트: ${user.currentReward}]`,
         inline: false,
       });
     });
