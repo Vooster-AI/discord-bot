@@ -102,59 +102,113 @@ async function handleLevelCommand(
   const targetUser = interaction.options.getUser("user") || interaction.user;
 
   try {
+    // 즉시 defer하여 응답 시간 연장 (15분까지 가능)
+    await interaction.deferReply();
+
     const userData = await ensureUserExists(targetUser);
 
-    // 현재 레벨과 다음 레벨 정보 가져오기
-    const currentLevel = await LevelService.getCurrentLevel(
-      userData.currentReward
-    );
-    const nextLevel = await LevelService.getNextLevel(userData.currentLevel);
-    const progress = await LevelService.calculateProgress(
-      userData.currentReward,
-      userData.currentLevel
-    );
+    // 병렬 처리로 성능 최적화
+    const [ranking, currentLevel, nextLevel, progress] = await Promise.all([
+      UserService.getUserRanking(targetUser.id),
+      LevelService.getCurrentLevel(userData.currentReward),
+      LevelService.getNextLevel(userData.currentLevel),
+      LevelService.calculateProgress(
+        userData.currentReward,
+        userData.currentLevel
+      ),
+    ]);
+
+    // 레벨에 따른 이모지 및 색상 결정
+    const levelEmoji = getLevelEmoji(userData.currentLevel);
+    const levelColor = getLevelColor(userData.currentLevel);
+    const progressBar = createProgressBar(progress.progressPercentage);
+
+    // 랭킹 이모지 및 텍스트
+    const rankEmoji = getRankEmoji(ranking?.rank || 0);
+    const rankText = ranking
+      ? `${rankEmoji} **${ranking.rank}위** / ${ranking.totalUsers}명 (상위 ${ranking.percentile}%)`
+      : "순위 정보 없음";
+
+    // 다음 레벨까지 필요한 포인트
+    const nextLevelPoints = nextLevel
+      ? nextLevel.requiredRewardAmount - userData.currentReward
+      : 0;
+
+    // 축하 메시지 생성
+    const congratsMessage = getCongratulationsMessage(userData.currentLevel);
 
     const embed = new EmbedBuilder()
-      .setTitle(`${targetUser.globalName || targetUser.username}의 레벨 정보`)
-      .setThumbnail(targetUser.displayAvatarURL())
+      .setTitle(
+        `${levelEmoji} ${targetUser.globalName || targetUser.username}의 레벨 정보`
+      )
+      .setDescription(`${congratsMessage}\n\n${rankText}`)
+      .setThumbnail(targetUser.displayAvatarURL({ size: 256 }))
       .addFields(
         {
-          name: "현재 레벨",
-          value: `${userData.currentLevel} (${currentLevel?.levelName || "Unknown"})`,
+          name: "🎯 현재 레벨",
+          value: `**${userData.currentLevel}** (${currentLevel?.levelName || "Unknown"})`,
           inline: true,
         },
         {
-          name: "현재 포인트",
-          value: `${userData.currentReward}`,
+          name: "💎 총 포인트",
+          value: `**${userData.currentReward.toLocaleString()}**`,
           inline: true,
         },
         {
-          name: "다음 레벨까지",
+          name: nextLevel ? "🚀 다음 레벨까지" : "🏆 최고 레벨",
           value: nextLevel
-            ? `${nextLevel.requiredRewardAmount - userData.currentReward}`
-            : "최고 레벨",
+            ? `**${nextLevelPoints.toLocaleString()}** 포인트`
+            : "**축하합니다!**",
           inline: true,
         },
         {
-          name: "진행률",
-          value: `${progress.progressPercentage.toFixed(1)}%`,
-          inline: true,
+          name: "📊 진행률",
+          value: `${progressBar}\n**${progress.progressPercentage.toFixed(1)}%** 완료`,
+          inline: false,
         }
       )
-      .setColor(COMMAND_COLORS.LEVEL)
+      .setColor(levelColor)
       .setFooter({
-        text: "Discord Bot Server",
+        text: `Discord Bot Server • ${new Date().toLocaleDateString("ko-KR")}`,
         iconURL: interaction.client.user?.displayAvatarURL(),
       })
       .setTimestamp();
 
-    await interaction.reply({ embeds: [embed] });
+    // 특별한 레벨에 대한 추가 정보
+    if (userData.currentLevel >= 5) {
+      embed.addFields({
+        name: "🌟 특별 혜택",
+        value: getSpecialBenefits(userData.currentLevel),
+        inline: false,
+      });
+    }
+
+    // 다음 레벨 정보 추가
+    if (nextLevel) {
+      embed.addFields({
+        name: `✨ 다음 레벨: ${nextLevel.levelName}`,
+        value: `${nextLevel.requiredRewardAmount.toLocaleString()} 포인트에 도달하면 ${nextLevel.levelName}가 됩니다!`,
+        inline: false,
+      });
+    }
+
+    // defer 후에는 followUp 사용
+    await interaction.followUp({ embeds: [embed] });
   } catch (error) {
     console.error("[LevelCommand] 레벨 명령어 처리 오류:", error);
-    await interaction.reply({
-      content: "레벨 정보를 가져오는 중 오류가 발생했습니다.",
-      ephemeral: true,
-    });
+
+    // 에러 응답 처리
+    if (interaction.deferred) {
+      await interaction.followUp({
+        content: "레벨 정보를 가져오는 중 오류가 발생했습니다.",
+        ephemeral: true,
+      });
+    } else {
+      await interaction.reply({
+        content: "레벨 정보를 가져오는 중 오류가 발생했습니다.",
+        ephemeral: true,
+      });
+    }
   }
 }
 
@@ -165,10 +219,13 @@ async function handleTopCommand(
   interaction: ChatInputCommandInteraction
 ): Promise<void> {
   try {
+    // 즉시 defer하여 응답 시간 연장
+    await interaction.deferReply();
+
     const leaderboard = await UserService.getLeaderboard(TOP_LIMIT);
 
     if (leaderboard.length === 0) {
-      await interaction.reply({
+      await interaction.followUp({
         content: "리더보드 데이터가 없습니다.",
         ephemeral: true,
       });
@@ -193,13 +250,22 @@ async function handleTopCommand(
       });
     });
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.followUp({ embeds: [embed] });
   } catch (error) {
     console.error("[TopCommand] 리더보드 명령어 처리 오류:", error);
-    await interaction.reply({
-      content: "리더보드를 가져오는 중 오류가 발생했습니다.",
-      ephemeral: true,
-    });
+
+    // 에러 응답 처리
+    if (interaction.deferred) {
+      await interaction.followUp({
+        content: "리더보드를 가져오는 중 오류가 발생했습니다.",
+        ephemeral: true,
+      });
+    } else {
+      await interaction.reply({
+        content: "리더보드를 가져오는 중 오류가 발생했습니다.",
+        ephemeral: true,
+      });
+    }
   }
 }
 
@@ -212,6 +278,9 @@ async function handleHistoryCommand(
   const targetUser = interaction.options.getUser("user") || interaction.user;
 
   try {
+    // 즉시 defer하여 응답 시간 연장
+    await interaction.deferReply();
+
     const rewardHistory = await UserService.getUserRewardHistory(
       targetUser.id,
       HISTORY_LIMIT
@@ -221,7 +290,7 @@ async function handleHistoryCommand(
       // 사용자가 존재하지 않으면 새로 생성
       await ensureUserExists(targetUser);
 
-      await interaction.reply({
+      await interaction.followUp({
         content:
           "아직 리워드 내역이 없습니다. 메시지를 작성하거나 포럼에 참여해보세요!",
         ephemeral: true,
@@ -254,13 +323,22 @@ async function handleHistoryCommand(
       });
     });
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.followUp({ embeds: [embed] });
   } catch (error) {
     console.error("[HistoryCommand] 리워드 내역 명령어 처리 오류:", error);
-    await interaction.reply({
-      content: "리워드 내역을 가져오는 중 오류가 발생했습니다.",
-      ephemeral: true,
-    });
+
+    // 에러 응답 처리
+    if (interaction.deferred) {
+      await interaction.followUp({
+        content: "리워드 내역을 가져오는 중 오류가 발생했습니다.",
+        ephemeral: true,
+      });
+    } else {
+      await interaction.reply({
+        content: "리워드 내역을 가져오는 중 오류가 발생했습니다.",
+        ephemeral: true,
+      });
+    }
   }
 }
 
@@ -283,18 +361,30 @@ async function handleVoosterCommand(
   }
 
   try {
+    // 데이터베이스 업데이트 작업이 있으므로 defer 사용
+    await interaction.deferReply({ ephemeral: true });
+
     await UserService.updateVoosterEmail(interaction.user.id, email);
 
-    await interaction.reply({
+    await interaction.followUp({
       content: `✅ Vooster 이메일이 성공적으로 등록되었습니다: ${email}`,
       ephemeral: true,
     });
   } catch (error) {
     console.error("[VoosterCommand] Vooster 이메일 명령어 처리 오류:", error);
-    await interaction.reply({
-      content: "Vooster 이메일 등록 중 오류가 발생했습니다.",
-      ephemeral: true,
-    });
+
+    // 에러 응답 처리
+    if (interaction.deferred) {
+      await interaction.followUp({
+        content: "Vooster 이메일 등록 중 오류가 발생했습니다.",
+        ephemeral: true,
+      });
+    } else {
+      await interaction.reply({
+        content: "Vooster 이메일 등록 중 오류가 발생했습니다.",
+        ephemeral: true,
+      });
+    }
   }
 }
 
@@ -305,10 +395,13 @@ async function handleLevelsCommand(
   interaction: ChatInputCommandInteraction
 ): Promise<void> {
   try {
+    // 즉시 defer하여 응답 시간 연장
+    await interaction.deferReply();
+
     const levels = await LevelService.getAllLevels();
 
     if (levels.length === 0) {
-      await interaction.reply({
+      await interaction.followUp({
         content: "레벨 정보를 찾을 수 없습니다.",
         ephemeral: true,
       });
@@ -336,13 +429,22 @@ async function handleLevelsCommand(
       });
     });
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.followUp({ embeds: [embed] });
   } catch (error) {
     console.error("[LevelsCommand] 레벨 시스템 명령어 처리 오류:", error);
-    await interaction.reply({
-      content: "레벨 정보를 가져오는 중 오류가 발생했습니다.",
-      ephemeral: true,
-    });
+
+    // 에러 응답 처리
+    if (interaction.deferred) {
+      await interaction.followUp({
+        content: "레벨 정보를 가져오는 중 오류가 발생했습니다.",
+        ephemeral: true,
+      });
+    } else {
+      await interaction.reply({
+        content: "레벨 정보를 가져오는 중 오류가 발생했습니다.",
+        ephemeral: true,
+      });
+    }
   }
 }
 
@@ -395,13 +497,23 @@ async function handleHelpCommand(
       })
       .setTimestamp();
 
+    // help 명령어는 즉시 응답 가능하므로 defer 없이 reply 사용
     await interaction.reply({ embeds: [embed] });
   } catch (error) {
     console.error("[HelpCommand] 도움말 명령어 처리 오류:", error);
-    await interaction.reply({
-      content: "도움말을 가져오는 중 오류가 발생했습니다.",
-      ephemeral: true,
-    });
+
+    // 에러 응답 처리
+    if (interaction.deferred) {
+      await interaction.followUp({
+        content: "도움말을 가져오는 중 오류가 발생했습니다.",
+        ephemeral: true,
+      });
+    } else {
+      await interaction.reply({
+        content: "도움말을 가져오는 중 오류가 발생했습니다.",
+        ephemeral: true,
+      });
+    }
   }
 }
 
@@ -419,4 +531,84 @@ function getMedalEmoji(index: number): string {
     default:
       return "🏅";
   }
+}
+
+/**
+ * 레벨에 따른 이모지 반환
+ */
+function getLevelEmoji(level: number): string {
+  if (level >= 7) return "👑";
+  if (level >= 5) return "🏆";
+  if (level >= 3) return "🥇";
+  if (level >= 2) return "🎖️";
+  return "🌱";
+}
+
+/**
+ * 레벨에 따른 색상 반환
+ */
+function getLevelColor(level: number): number {
+  if (level >= 7) return 0xffd700; // 골드
+  if (level >= 5) return 0xff6b35; // 오렌지
+  if (level >= 3) return 0x4ecdc4; // 청록색
+  if (level >= 2) return 0x45b7d1; // 파란색
+  return 0x96ceb4; // 연두색
+}
+
+/**
+ * 진행률 바 생성
+ */
+function createProgressBar(percentage: number): string {
+  const totalBars = 10;
+  const filledBars = Math.round((percentage / 100) * totalBars);
+  const emptyBars = totalBars - filledBars;
+
+  const filled = "█".repeat(filledBars);
+  const empty = "░".repeat(emptyBars);
+
+  return `${filled}${empty}`;
+}
+
+/**
+ * 랭킹에 따른 이모지 반환
+ */
+function getRankEmoji(rank: number): string {
+  if (rank === 2) return "🥇";
+  if (rank === 3) return "🥈";
+  if (rank === 4) return "🥉";
+  if (rank <= 11) return "🏅";
+  if (rank <= 51) return "⭐";
+  return "📊";
+}
+
+/**
+ * 레벨에 따른 축하 메시지 반환
+ */
+function getCongratulationsMessage(level: number): string {
+  const messages = {
+    1: "🌟 새로운 시작! 포인트를 모아서 레벨을 올려보세요!",
+    2: "🎉 첫 번째 레벨 업! 계속 활동해보세요!",
+    3: "🔥 Beta MVP 달성! 이제 진짜 시작이네요!",
+    4: "💪 Active 레벨! 정말 활발하게 활동하고 계시는군요!",
+    5: "🚀 Contributor 레벨! 커뮤니티에 기여해주셔서 감사합니다!",
+    6: "⚡ Veteran 레벨! 경험이 쌓여가고 있어요!",
+    7: "👑 Ambassador 레벨! 최고의 멤버입니다!",
+  };
+
+  return messages[level as keyof typeof messages] || "🎯 멋진 레벨이네요!";
+}
+
+/**
+ * 특별 혜택 정보 반환
+ */
+function getSpecialBenefits(level: number): string {
+  const benefits = [];
+
+  if (level >= 3) benefits.push("🎨 Beta MVP 역할");
+  if (level >= 5) benefits.push("💝 Contributor 역할");
+  if (level >= 7) benefits.push("👑 Ambassador 역할", "🌟 특별 채널 접근");
+
+  return benefits.length > 0
+    ? benefits.join("\n")
+    : "계속 활동하면 더 많은 혜택이 기다려요!";
 }

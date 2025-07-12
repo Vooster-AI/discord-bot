@@ -13,6 +13,7 @@ import { LevelService } from "../../../src/services/levelService.js";
 vi.mock("../../../src/services/userService.js", () => ({
   UserService: {
     getUserData: vi.fn(),
+    getUserRanking: vi.fn(),
     getLeaderboard: vi.fn(),
     getUserRewardHistory: vi.fn(),
     updateVoosterEmail: vi.fn(),
@@ -73,6 +74,9 @@ describe("InteractionCreate Event Handler", () => {
         getString: vi.fn(),
       },
       reply: vi.fn(),
+      deferReply: vi.fn(),
+      followUp: vi.fn(),
+      deferred: false,
       client: {
         user: {
           displayAvatarURL: () => "https://example.com/bot-avatar.png",
@@ -129,7 +133,14 @@ describe("InteractionCreate Event Handler", () => {
       mockInteraction.commandName = "level";
       mockInteraction.options.getUser = vi.fn().mockReturnValue(null);
 
+      const mockRanking = {
+        rank: 1,
+        totalUsers: 10,
+        percentile: 90,
+      };
+
       vi.mocked(UserService.getUserData).mockResolvedValue(mockUserData);
+      vi.mocked(UserService.getUserRanking).mockResolvedValue(mockRanking);
       vi.mocked(LevelService.getCurrentLevel).mockResolvedValue(
         mockCurrentLevel
       );
@@ -140,8 +151,9 @@ describe("InteractionCreate Event Handler", () => {
       await interactionCreateHandler(mockInteraction as Interaction);
 
       // Assert
+      expect(mockInteraction.deferReply).toHaveBeenCalledOnce();
       expect(UserService.getUserData).toHaveBeenCalledWith("123456789");
-      expect(mockInteraction.reply).toHaveBeenCalledWith({
+      expect(mockInteraction.followUp).toHaveBeenCalledWith({
         embeds: expect.arrayContaining([expect.any(Object)]),
       });
     });
@@ -190,9 +202,16 @@ describe("InteractionCreate Event Handler", () => {
       mockInteraction.commandName = "level";
       mockInteraction.options.getUser = vi.fn().mockReturnValue(null);
 
+      const mockRanking = {
+        rank: 1,
+        totalUsers: 1,
+        percentile: 100,
+      };
+
       // getUserData는 null을 반환하고, findOrCreateUser가 신규 사용자를 생성
       vi.mocked(UserService.getUserData).mockResolvedValue(null);
       vi.mocked(UserService.findOrCreateUser).mockResolvedValue(mockNewUser);
+      vi.mocked(UserService.getUserRanking).mockResolvedValue(mockRanking);
       vi.mocked(LevelService.getCurrentLevel).mockResolvedValue(
         mockCurrentLevel
       );
@@ -203,6 +222,7 @@ describe("InteractionCreate Event Handler", () => {
       await interactionCreateHandler(mockInteraction as Interaction);
 
       // Assert
+      expect(mockInteraction.deferReply).toHaveBeenCalledOnce();
       expect(UserService.getUserData).toHaveBeenCalledWith("123456789");
       expect(UserService.findOrCreateUser).toHaveBeenCalledWith("123456789", {
         username: "testuser",
@@ -210,7 +230,7 @@ describe("InteractionCreate Event Handler", () => {
         discriminator: null,
         avatarUrl: "https://example.com/avatar.png",
       });
-      expect(mockInteraction.reply).toHaveBeenCalledWith({
+      expect(mockInteraction.followUp).toHaveBeenCalledWith({
         embeds: expect.arrayContaining([expect.any(Object)]),
       });
     });
@@ -255,11 +275,12 @@ describe("InteractionCreate Event Handler", () => {
       await interactionCreateHandler(mockInteraction as Interaction);
 
       // Assert
+      expect(mockInteraction.deferReply).toHaveBeenCalledOnce();
       expect(UserService.getUserRewardHistory).toHaveBeenCalledWith(
         "123456789",
         5
       );
-      expect(mockInteraction.reply).toHaveBeenCalledWith({
+      expect(mockInteraction.followUp).toHaveBeenCalledWith({
         embeds: expect.arrayContaining([expect.any(Object)]),
       });
     });
@@ -291,6 +312,7 @@ describe("InteractionCreate Event Handler", () => {
       await interactionCreateHandler(mockInteraction as Interaction);
 
       // Assert
+      expect(mockInteraction.deferReply).toHaveBeenCalledOnce();
       expect(UserService.getUserRewardHistory).toHaveBeenCalledWith(
         "123456789",
         5
@@ -301,7 +323,7 @@ describe("InteractionCreate Event Handler", () => {
         discriminator: null,
         avatarUrl: "https://example.com/avatar.png",
       });
-      expect(mockInteraction.reply).toHaveBeenCalledWith({
+      expect(mockInteraction.followUp).toHaveBeenCalledWith({
         content:
           "아직 리워드 내역이 없습니다. 메시지를 작성하거나 포럼에 참여해보세요!",
         ephemeral: true,
@@ -319,11 +341,12 @@ describe("InteractionCreate Event Handler", () => {
       await interactionCreateHandler(mockInteraction as Interaction);
 
       // Assert
+      expect(mockInteraction.deferReply).toHaveBeenCalledOnce();
       expect(UserService.getUserRewardHistory).toHaveBeenCalledWith(
         "123456789",
         5
       );
-      expect(mockInteraction.reply).toHaveBeenCalledWith({
+      expect(mockInteraction.followUp).toHaveBeenCalledWith({
         content:
           "아직 리워드 내역이 없습니다. 메시지를 작성하거나 포럼에 참여해보세요!",
         ephemeral: true,
@@ -356,8 +379,9 @@ describe("InteractionCreate Event Handler", () => {
       await interactionCreateHandler(mockInteraction as Interaction);
 
       // Assert
+      expect(mockInteraction.deferReply).toHaveBeenCalledOnce();
       expect(UserService.getLeaderboard).toHaveBeenCalledWith(10);
-      expect(mockInteraction.reply).toHaveBeenCalledWith({
+      expect(mockInteraction.followUp).toHaveBeenCalledWith({
         embeds: expect.arrayContaining([expect.any(Object)]),
       });
     });
@@ -386,8 +410,9 @@ describe("InteractionCreate Event Handler", () => {
       await interactionCreateHandler(mockInteraction as Interaction);
 
       // Assert
+      expect(mockInteraction.deferReply).toHaveBeenCalledOnce();
       expect(UserService.getLeaderboard).toHaveBeenCalledWith(10);
-      expect(mockInteraction.reply).toHaveBeenCalledWith({
+      expect(mockInteraction.followUp).toHaveBeenCalledWith({
         embeds: expect.arrayContaining([expect.any(Object)]),
       });
     });
@@ -431,7 +456,8 @@ describe("InteractionCreate Event Handler", () => {
       await interactionCreateHandler(mockInteraction as any);
 
       // Assert
-      expect(mockInteraction.reply).toHaveBeenCalledWith({
+      expect(mockInteraction.deferReply).toHaveBeenCalledOnce();
+      expect(mockInteraction.followUp).toHaveBeenCalledWith({
         embeds: [expect.any(Object)],
       });
     });
@@ -445,10 +471,12 @@ describe("InteractionCreate Event Handler", () => {
       mockInteraction.commandName = "levels";
 
       // Act
+      mockInteraction.deferred = true; // deferReply 후 상태 시뮬레이션
       await interactionCreateHandler(mockInteraction as any);
 
       // Assert
-      expect(mockInteraction.reply).toHaveBeenCalledWith({
+      expect(mockInteraction.deferReply).toHaveBeenCalledOnce();
+      expect(mockInteraction.followUp).toHaveBeenCalledWith({
         content: "레벨 정보를 가져오는 중 오류가 발생했습니다.",
         ephemeral: true,
       });

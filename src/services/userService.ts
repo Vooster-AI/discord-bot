@@ -72,6 +72,54 @@ export class UserService {
   }
 
   /**
+   * 사용자 랭킹 조회
+   */
+  static async getUserRanking(discordId: string): Promise<{
+    rank: number;
+    totalUsers: number;
+    percentile: number;
+  } | null> {
+    try {
+      const user = await prisma.discordUser.findUnique({
+        where: { discordId },
+      });
+
+      if (!user) {
+        return null;
+      }
+
+      // 현재 사용자보다 점수가 높은 사용자 수 조회
+      const higherScoreUsers = await prisma.discordUser.count({
+        where: {
+          currentReward: {
+            gt: user.currentReward,
+          },
+        },
+      });
+
+      // 전체 사용자 수 조회
+      const totalUsers = await prisma.discordUser.count();
+
+      // 랭킹 계산 (1위부터 시작)
+      const rank = higherScoreUsers + 1;
+
+      // 백분위 계산 (상위 몇 퍼센트인지)
+      const percentile = Math.round(
+        ((totalUsers - rank + 1) / totalUsers) * 100
+      );
+
+      return {
+        rank,
+        totalUsers,
+        percentile,
+      };
+    } catch (error) {
+      console.error("[UserService] 사용자 랭킹 조회 오류:", error);
+      throw error;
+    }
+  }
+
+  /**
    * 사용자 리워드 내역 조회
    */
   static async getUserRewardHistory(

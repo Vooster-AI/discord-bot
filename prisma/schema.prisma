@@ -28,6 +28,8 @@ model DiscordUser {
     rewardHistories RewardHistory[]
 
     @@index([discordId])
+    @@index([currentReward, currentLevel])
+    @@index([currentReward])
     @@map("discord_user")
 }
 
@@ -37,7 +39,7 @@ model DiscordEvent {
     discordUserId Int
     eventType     String
     channelId     String
-    messageId     String?     @unique
+    messageId     String?
     content       String?
     createdAt     DateTime    @default(now())
     processed     Boolean     @default(false)
