@@ -45,6 +45,10 @@ const commands = [
   new SlashCommandBuilder()
     .setName("help")
     .setDescription("사용 가능한 명령어 목록을 확인합니다."),
+
+  new SlashCommandBuilder()
+    .setName("daily-bonus")
+    .setDescription("매일 한 번 받을 수 있는 랜덤 보너스를 받습니다."),
 ].map((command) => command.toJSON());
 
 // Discord REST API 클라이언트 생성

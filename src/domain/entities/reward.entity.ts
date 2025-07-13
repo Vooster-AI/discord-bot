@@ -28,7 +28,7 @@ export interface RewardableChannel {
 /**
  * 보상 유형
  */
-export type RewardType = "message" | "comment" | "forum_post" | "manual";
+export type RewardType = "message" | "comment" | "forum_post" | "manual" | "daily_bonus";
 
 /**
  * 보상 처리 결과

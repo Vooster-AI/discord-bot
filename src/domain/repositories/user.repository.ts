@@ -49,4 +49,9 @@ export interface IUserRepository {
    * Vooster 이메일 업데이트
    */
   updateVoosterEmail(id: number, email: string): Promise<User>;
+
+  /**
+   * 일일 보너스 시간 업데이트
+   */
+  updateDailyBonusTime(id: number, time: Date): Promise<User>;
 }

@@ -12,6 +12,7 @@ export interface User {
   currentReward: number;
   currentLevel: number;
   voosterEmail: string | null;
+  lastDailyBonus: Date | null;
   joinedAt: Date;
   updatedAt: Date;
 }

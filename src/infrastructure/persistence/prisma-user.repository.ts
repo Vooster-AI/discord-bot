@@ -165,6 +165,21 @@ export class PrismaUserRepository implements IUserRepository {
   }
 
   /**
+   * 일일 보너스 시간 업데이트
+   */
+  async updateDailyBonusTime(id: number, time: Date): Promise<User> {
+    const user = await this.prisma.discordUser.update({
+      where: { id },
+      data: {
+        lastDailyBonus: time,
+        updatedAt: new Date(),
+      },
+    });
+
+    return this.mapToUser(user);
+  }
+
+  /**
    * Prisma 모델을 도메인 엔티티로 변환
    */
   private mapToUser(prismaUser: any): User {
@@ -178,6 +193,7 @@ export class PrismaUserRepository implements IUserRepository {
       currentReward: prismaUser.currentReward,
       currentLevel: prismaUser.currentLevel,
       voosterEmail: prismaUser.voosterEmail,
+      lastDailyBonus: prismaUser.lastDailyBonus,
       joinedAt: prismaUser.joinedAt,
       updatedAt: prismaUser.updatedAt,
     };

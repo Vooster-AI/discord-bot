@@ -54,6 +54,9 @@ export default async function interactionCreateHandler(
       case "help":
         await handleHelpCommand(interaction);
         break;
+      case "daily-bonus":
+        await handleDailyBonusCommand(interaction);
+        break;
       default:
         await interaction.reply({
           content: "알 수 없는 명령어입니다.",
@@ -312,7 +315,7 @@ async function handleHistoryCommand(
 
     rewardHistory.forEach((reward) => {
       const typeEmoji = getRewardTypeEmoji(reward.type);
-      const content = truncateContent(reward.event?.content);
+      const content = truncateContent(reward.event?.content || reward.reason);
       const channelId = reward.event?.channelId || "알 수 없음";
       const timeAgo = formatTimeAgo(reward.createdAt);
 
@@ -486,6 +489,11 @@ async function handleHelpCommand(
           inline: false,
         },
         {
+          name: "/daily-bonus",
+          value: "매일 한 번 받을 수 있는 랜덤 보너스를 받습니다.",
+          inline: false,
+        },
+        {
           name: "/help",
           value: "이 도움말을 표시합니다.",
           inline: false,
@@ -514,6 +522,212 @@ async function handleHelpCommand(
         ephemeral: true,
       });
     }
+  }
+}
+
+/**
+ * /daily-bonus 명령어 처리
+ */
+async function handleDailyBonusCommand(
+  interaction: ChatInputCommandInteraction
+): Promise<void> {
+  try {
+    await interaction.deferReply();
+
+    const user = await ensureUserExists(interaction.user);
+
+    // 쿨다운 확인 (KST 기준 00:00 리셋)
+    const now = new Date();
+    const lastBonus = user.lastDailyBonus;
+
+    if (lastBonus) {
+      // KST로 변환 (UTC+9)
+      const nowKST = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+      const lastBonusKST = new Date(
+        new Date(lastBonus).getTime() + 9 * 60 * 60 * 1000
+      );
+
+      // 날짜 부분만 비교 (시간 제거)
+      const todayKST = new Date(
+        nowKST.getFullYear(),
+        nowKST.getMonth(),
+        nowKST.getDate()
+      );
+      const lastBonusDateKST = new Date(
+        lastBonusKST.getFullYear(),
+        lastBonusKST.getMonth(),
+        lastBonusKST.getDate()
+      );
+
+      if (todayKST.getTime() === lastBonusDateKST.getTime()) {
+        // 다음 00:00 KST까지 남은 시간 계산
+        const tomorrowKST = new Date(todayKST.getTime() + 24 * 60 * 60 * 1000);
+        const tomorrowUTC = new Date(
+          tomorrowKST.getTime() - 9 * 60 * 60 * 1000
+        );
+        const timeRemaining = tomorrowUTC.getTime() - now.getTime();
+        const hoursRemaining = Math.ceil(timeRemaining / (60 * 60 * 1000));
+
+        await interaction.followUp({
+          content: `⏰ 일일 보너스는 KST 기준 자정(00:00)에 리셋됩니다!\n다음 보너스까지 **${hoursRemaining}시간** 남았습니다.`,
+          ephemeral: true,
+        });
+        return;
+      }
+    }
+
+    // 랜덤 보상 계산
+    const rewardAmount = calculateRandomReward();
+
+    // 보상 지급
+    const newTotalReward = user.currentReward + rewardAmount;
+    await UserService.updateUserPoints(user.id, newTotalReward);
+    await UserService.updateDailyBonusTime(user.id, now);
+
+    // 보상 히스토리 기록
+    await UserService.createRewardHistory({
+      discordUserId: user.id,
+      amount: rewardAmount,
+      type: "daily_bonus",
+      reason: `일일 보너스 (${rewardAmount} 포인트)`,
+    });
+
+    // 레벨 업 확인
+    const oldLevel = user.currentLevel;
+    const newLevel =
+      await LevelService.calculateLevelFromReward(newTotalReward);
+    let levelUpMessage = "";
+
+    if (newLevel > oldLevel) {
+      await UserService.updateUserLevel(user.id, newLevel);
+      const levelInfo = await LevelService.getCurrentLevel(newTotalReward);
+      levelUpMessage = `\n\n🎉 **레벨업!** 레벨 ${newLevel} (${levelInfo?.levelName || "Unknown"})에 도달했습니다!`;
+    }
+
+    // 보상 이모지 결정
+    const rewardEmoji = getRewardEmoji(rewardAmount);
+    const rarity = getRewardRarity(rewardAmount);
+
+    const embed = new EmbedBuilder()
+      .setTitle(`🎁 일일 보너스!`)
+      .setDescription(
+        `${rewardEmoji} **${rewardAmount} 포인트**를 받았습니다! ${rarity}`
+      )
+      .addFields(
+        {
+          name: "💎 총 포인트",
+          value: `**${newTotalReward.toLocaleString()}**`,
+          inline: true,
+        },
+        {
+          name: "🎯 현재 레벨",
+          value: `**${newLevel > oldLevel ? newLevel : user.currentLevel}**`,
+          inline: true,
+        }
+      )
+      .setColor(getRewardColor(rewardAmount))
+      .setFooter({
+        text: "매일 자정(KST 00:00)에 리셋됩니다!",
+        iconURL: interaction.client.user?.displayAvatarURL(),
+      })
+      .setTimestamp();
+
+    await interaction.followUp({
+      content: `${interaction.user}${levelUpMessage}`,
+      embeds: [embed],
+    });
+  } catch (error) {
+    console.error("[DailyBonusCommand] 일일 보너스 명령어 처리 오류:", error);
+
+    if (interaction.deferred) {
+      await interaction.followUp({
+        content: "일일 보너스 처리 중 오류가 발생했습니다.",
+        ephemeral: true,
+      });
+    } else {
+      await interaction.reply({
+        content: "일일 보너스 처리 중 오류가 발생했습니다.",
+        ephemeral: true,
+      });
+    }
+  }
+}
+
+/**
+ * 가중치 기반 랜덤 보상 계산
+ * 1 point: 70%
+ * 2 point: 20%
+ * 3 point: 3%
+ * 5 point: 1.9%
+ * 10 point: 0.1%
+ */
+function calculateRandomReward(): number {
+  const random = Math.random() * 100; // 0-100 사이의 랜덤 값
+
+  if (random < 70) return 1; // 0-70: 1 포인트 (70%)
+  if (random < 95) return 2; // 70-90: 2 포인트 (25%)
+  if (random < 99) return 3; // 90-93: 3 포인트 (4%)
+  if (random < 99.9) return 5; // 93-94.9: 5 포인트 (2.9%)
+  return 10; // 94.9-100: 10 포인트 (0.1%)
+}
+
+/**
+ * 보상 금액에 따른 이모지 반환
+ */
+function getRewardEmoji(amount: number): string {
+  switch (amount) {
+    case 1:
+      return "🪙";
+    case 2:
+      return "💰";
+    case 3:
+      return "💎";
+    case 5:
+      return "🏆";
+    case 10:
+      return "👑";
+    default:
+      return "🎁";
+  }
+}
+
+/**
+ * 보상 금액에 따른 희귀도 텍스트 반환
+ */
+function getRewardRarity(amount: number): string {
+  switch (amount) {
+    case 1:
+      return "(일반)";
+    case 2:
+      return "(고급)";
+    case 3:
+      return "(희귀)";
+    case 5:
+      return "(영웅)";
+    case 10:
+      return "(전설)";
+    default:
+      return "";
+  }
+}
+
+/**
+ * 보상 금액에 따른 색상 반환
+ */
+function getRewardColor(amount: number): number {
+  switch (amount) {
+    case 1:
+      return 0x96ceb4; // 연두색 (일반)
+    case 2:
+      return 0x45b7d1; // 파란색 (고급)
+    case 3:
+      return 0x4ecdc4; // 청록색 (희귀)
+    case 5:
+      return 0xff6b35; // 오렌지 (영웅)
+    case 10:
+      return 0xffd700; // 골드 (전설)
+    default:
+      return 0x0099ff;
   }
 }
 
