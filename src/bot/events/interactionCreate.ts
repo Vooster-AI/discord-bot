@@ -857,39 +857,21 @@ async function handleExpGuideCommand(
       .setColor(COMMAND_COLORS.LEVEL)
       .addFields(
         {
-          name: "📝 메시지 작성",
+          name: "📝 메시지/게시물/댓글 작성",
           value:
-            "일반 채널에 메시지를 작성하면 포인트를 획득합니다.\n채널별로 다른 포인트가 설정되어 있습니다.\n`/channel-exp-guide`로 채널별 상세 정보를 확인하세요!",
-          inline: false,
-        },
-        {
-          name: "💬 댓글 작성",
-          value:
-            "스레드나 포럼 게시글에 댓글을 작성하면 포인트를 획득합니다.\n일반 메시지보다 더 많은 포인트를 받을 수 있습니다.",
-          inline: false,
-        },
-        {
-          name: "📋 포럼 게시글 작성",
-          value:
-            "포럼 채널에 새 게시글을 작성하면 높은 포인트를 획득합니다.\n커뮤니티 기여도가 높게 평가됩니다.",
+            "채널별로 다른 포인트가 설정되어 있습니다.\n`/channel-exp-guide`로 채널별 상세 정보를 확인하세요!",
           inline: false,
         },
         {
           name: "🎁 일일 보너스",
           value:
-            "`/daily-bonus` 명령어로 매일 랜덤 포인트를 받을 수 있습니다.\n**1-10 포인트** 중 확률에 따라 지급됩니다.\n매일 자정(KST 00:00)에 리셋됩니다.",
+            "`/daily-bonus` 명령어로 매일 랜덤 포인트를 받을 수 있습니다.\n**1-10 포인트**가 랜덤으로 지급됩니다.",
           inline: false,
         },
         {
           name: "⚡ 특별 이벤트",
           value:
             "특정 기간 동안 2배 포인트 이벤트가 진행될 수 있습니다.\n공지사항을 확인해주세요!",
-          inline: false,
-        },
-        {
-          name: "🏆 레벨업 혜택",
-          value:
-            "포인트를 모아 레벨을 올리면 특별한 역할과 혜택을 받을 수 있습니다.\n`/levels` 명령어로 레벨별 혜택을 확인해보세요!",
           inline: false,
         }
       )
@@ -950,22 +932,23 @@ async function handleChannelExpGuideCommand(
 
     rewardableChannels.forEach((channel) => {
       const rewards = [];
-      
+
       if (channel.messageRewardAmount > 0) {
         rewards.push(`📝 메시지: **${channel.messageRewardAmount}** 포인트`);
       }
-      
+
       if (channel.commentRewardAmount > 0) {
         rewards.push(`💬 댓글: **${channel.commentRewardAmount}** 포인트`);
       }
-      
+
       if (channel.forumPostRewardAmount > 0) {
-        rewards.push(`📋 포럼 게시글: **${channel.forumPostRewardAmount}** 포인트`);
+        rewards.push(
+          `📋 포럼 게시글: **${channel.forumPostRewardAmount}** 포인트`
+        );
       }
 
-      const rewardText = rewards.length > 0 
-        ? rewards.join('\n') 
-        : '보상이 설정되지 않음';
+      const rewardText =
+        rewards.length > 0 ? rewards.join("\n") : "보상이 설정되지 않음";
 
       embed.addFields({
         name: `#${channel.channelName}`,
@@ -976,13 +959,17 @@ async function handleChannelExpGuideCommand(
 
     embed.addFields({
       name: "💡 참고사항",
-      value: "• 포인트는 활동 즉시 지급됩니다\n• 스팸성 메시지는 보상 대상에서 제외될 수 있습니다\n• 특별 이벤트 기간에는 2배 포인트가 적용될 수 있습니다",
+      value:
+        "• 포인트는 활동 즉시 지급됩니다\n• 외부 홍보 시 10 포인트가 지급됩니다.\n• 스팸성 메시지는 보상 대상에서 제외될 수 있습니다\n• 특별 이벤트 기간에는 2배 포인트가 적용될 수 있습니다\ㅜ",
       inline: false,
     });
 
     await interaction.followUp({ embeds: [embed] });
   } catch (error) {
-    console.error("[ChannelExpGuideCommand] 채널별 경험치 가이드 명령어 처리 오류:", error);
+    console.error(
+      "[ChannelExpGuideCommand] 채널별 경험치 가이드 명령어 처리 오류:",
+      error
+    );
 
     if (interaction.deferred) {
       await interaction.followUp({
