@@ -12,6 +12,7 @@ vi.mock("../../src/utils/prisma", () => ({
     },
     rewardHistory: {
       create: vi.fn(),
+      aggregate: vi.fn(),
     },
     $transaction: vi.fn(),
   },
@@ -230,6 +231,12 @@ describe("RewardService - 2배 보상 기능", () => {
       (prisma.rewardableChannel.findUnique as any).mockResolvedValue(
         mockChannel
       );
+      // Mock for getDailyCommentReward
+      (prisma.rewardHistory.aggregate as any).mockResolvedValue({
+        _sum: {
+          amount: 0, // No previous comment rewards today
+        },
+      });
       (prisma.$transaction as any).mockResolvedValue(undefined);
 
       // Act
@@ -256,7 +263,7 @@ describe("RewardService - 2배 보상 기능", () => {
         where: { id: userId },
         data: {
           currentReward: {
-            increment: 10, // 5 * 2 = 10 (2배)
+            increment: 5, // Daily limit of 5 points for comments (no double reward as limit is applied first)
           },
         },
       });
@@ -334,6 +341,127 @@ describe("RewardService - 2배 보상 기능", () => {
 
       // Assert
       expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("댓글 일일 보상 한도", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it("사용자가 일일 댓글 보상 한도(15점)에 도달하면 추가 보상을 받지 못해야 한다", async () => {
+      // Arrange
+      const userId = 1;
+      const channelId = "test-channel-id";
+      const eventType = "comment";
+      const eventId = 1;
+      const messageCreatedAt = new Date();
+
+      const mockChannel = {
+        channelId,
+        messageRewardAmount: 10,
+        commentRewardAmount: 3,
+        forumPostRewardAmount: 15,
+        isActive: true,
+      };
+
+      (prisma.rewardableChannel.findUnique as any).mockResolvedValue(
+        mockChannel
+      );
+      // Mock: 이미 5점을 받은 상태
+      (prisma.rewardHistory.aggregate as any).mockResolvedValue({
+        _sum: {
+          amount: 15,
+        },
+      });
+
+      // Act
+      await RewardService.processReward(userId, channelId, eventType, eventId);
+
+      // Assert
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("일일 한도 미달 시 남은 한도만큼만 보상을 받아야 한다", async () => {
+      // Arrange
+      const userId = 1;
+      const channelId = "test-channel-id";
+      const eventType = "comment";
+      const eventId = 1;
+
+      const mockChannel = {
+        channelId,
+        messageRewardAmount: 10,
+        commentRewardAmount: 3, // 3점씩 지급
+        forumPostRewardAmount: 15,
+        isActive: true,
+      };
+
+      (prisma.rewardableChannel.findUnique as any).mockResolvedValue(
+        mockChannel
+      );
+      // Mock: 이미 13점을 받은 상태 (남은 한도: 2점)
+      (prisma.rewardHistory.aggregate as any).mockResolvedValue({
+        _sum: {
+          amount: 13,
+        },
+      });
+      (prisma.$transaction as any).mockResolvedValue(undefined);
+
+      // Act
+      await RewardService.processReward(userId, channelId, eventType, eventId);
+
+      // Assert
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      const transactionFn = (prisma.$transaction as any).mock.calls[0][0];
+
+      const mockTx = {
+        discordUser: { update: vi.fn() },
+        rewardHistory: { create: vi.fn() },
+      };
+
+      await transactionFn(mockTx);
+
+      expect(mockTx.discordUser.update).toHaveBeenCalledWith({
+        where: { id: userId },
+        data: {
+          currentReward: {
+            increment: 2, // 남은 한도인 2점만 지급
+          },
+        },
+      });
+    });
+
+    it("getDailyCommentReward가 오늘의 댓글 보상을 정확히 계산해야 한다", async () => {
+      // Arrange
+      const userId = 1;
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+
+      (prisma.rewardHistory.aggregate as any).mockResolvedValue({
+        _sum: {
+          amount: 4,
+        },
+      });
+
+      // Act
+      const result = await RewardService.getDailyCommentReward(userId);
+
+      // Assert
+      expect(result).toBe(4);
+      expect(prisma.rewardHistory.aggregate).toHaveBeenCalledWith({
+        where: {
+          discordUserId: userId,
+          type: "comment",
+          createdAt: {
+            gte: expect.any(Date),
+            lt: expect.any(Date),
+          },
+        },
+        _sum: {
+          amount: true,
+        },
+      });
     });
   });
 });

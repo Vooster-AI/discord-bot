@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Must
+
+- always respond in korean
+
 ## Development Commands
 
 ```bash

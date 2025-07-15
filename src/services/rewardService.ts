@@ -35,11 +35,38 @@ export class RewardService {
         return;
       }
 
+      // 댓글인 경우 일일 한도 확인
+      if (eventType === "comment") {
+        const dailyCommentReward = await this.getDailyCommentReward(userId);
+        if (dailyCommentReward >= 15) {
+          console.log(
+            `[RewardService] 사용자 ${userId}는 오늘 댓글 보상 한도(15점)에 도달했습니다.`
+          );
+          return;
+        }
+
+        // 남은 한도 계산
+        const remainingLimit = 5 - dailyCommentReward;
+        if (baseRewardAmount > remainingLimit) {
+          console.log(
+            `[RewardService] 댓글 보상을 ${remainingLimit}점으로 조정합니다. (일일 한도)`
+          );
+        }
+      }
+
       // 날짜 기반 2배 보상 적용
       const isDoubleReward = messageCreatedAt < DOUBLE_REWARD_CUTOFF_DATE;
-      const finalRewardAmount = isDoubleReward
+      let finalRewardAmount = isDoubleReward
         ? baseRewardAmount * 2
         : baseRewardAmount;
+
+      // 댓글인 경우 일일 한도에 맞춰 조정
+      if (eventType === "comment") {
+        const dailyCommentReward = await this.getDailyCommentReward(userId);
+        const remainingLimit = 5 - dailyCommentReward;
+        finalRewardAmount = Math.min(finalRewardAmount, remainingLimit);
+      }
+
       const reason = isDoubleReward
         ? `${eventType} 활동 보상 (2배 적용)`
         : `${eventType} 활동 보상`;
@@ -82,11 +109,26 @@ export class RewardService {
       }
 
       // 이벤트 타입에 따른 보상 금액 계산
-      const rewardAmount = this.calculateRewardAmount(channel, eventType);
+      let rewardAmount = this.calculateRewardAmount(channel, eventType);
 
       if (rewardAmount <= 0) {
         console.log(`[RewardService] 보상 금액이 0입니다: ${eventType}`);
         return;
+      }
+
+      // 댓글인 경우 일일 한도 확인
+      if (eventType === "comment") {
+        const dailyCommentReward = await this.getDailyCommentReward(userId);
+        if (dailyCommentReward >= 15) {
+          console.log(
+            `[RewardService] 사용자 ${userId}는 오늘 댓글 보상 한도(15점)에 도달했습니다.`
+          );
+          return;
+        }
+
+        // 남은 한도에 맞춰 조정
+        const remainingLimit = 15 - dailyCommentReward;
+        rewardAmount = Math.min(rewardAmount, remainingLimit);
       }
 
       // 보상 지급
@@ -298,6 +340,41 @@ export class RewardService {
     } catch (error) {
       console.error("[RewardService] 보상 채널 조회 오류:", error);
       return [];
+    }
+  }
+
+  /**
+   * 오늘 받은 댓글 보상 총액 조회
+   */
+  static async getDailyCommentReward(userId: number): Promise<number> {
+    try {
+      // 오늘 시작 시간 (UTC 기준)
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+
+      // 내일 시작 시간
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      // 오늘 받은 댓글 보상 합계 계산
+      const result = await prisma.rewardHistory.aggregate({
+        where: {
+          discordUserId: userId,
+          type: "comment",
+          createdAt: {
+            gte: today,
+            lt: tomorrow,
+          },
+        },
+        _sum: {
+          amount: true,
+        },
+      });
+
+      return result._sum.amount || 0;
+    } catch (error) {
+      console.error("[RewardService] 일일 댓글 보상 조회 오류:", error);
+      return 0;
     }
   }
 }
