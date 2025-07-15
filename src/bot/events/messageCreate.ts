@@ -23,9 +23,20 @@ export default async function messageCreateHandler(
     });
 
     // 이벤트 타입 결정 (스레드 내 메시지인지 확인)
-    const eventType = message.channel.isThread() ? "comment" : "message";
+    const isThread = message.channel.isThread();
+    const eventType = isThread ? "comment" : "message";
+    
+    // 보상 조회를 위한 채널 ID 결정
+    // 스레드(댓글)인 경우 부모 채널(포럼)의 ID를 사용하고, 일반 메시지는 해당 채널 ID를 사용
+    const rewardChannelId = isThread ? message.channel.parentId : message.channel.id;
 
-    // 이벤트 저장
+    // 부모 ID가 없는 경우를 대비한 방어 코드
+    if (!rewardChannelId) {
+      console.error(`[MessageCreate] 유효한 보상 채널 ID를 확인할 수 없습니다. 메시지 ID: ${message.id}`);
+      return;
+    }
+
+    // 이벤트 저장 (기록에는 실제 채널 ID를 유지)
     const event = await prisma.discordEvent.create({
       data: {
         discordUserId: user.id,
@@ -37,10 +48,10 @@ export default async function messageCreateHandler(
       },
     });
 
-    // 보상 처리
+    // 보상 처리 - rewardChannelId 사용
     await RewardService.processReward(
       user.id,
-      message.channel.id,
+      rewardChannelId,
       eventType,
       event.id
     );
