@@ -103,3 +103,15 @@ model Level {
 
     @@map("level")
 }
+
+model CommandableChannel {
+    id          Int      @id @default(autoincrement())
+    channelId   String   @unique
+    channelName String?
+    isActive    Boolean  @default(true)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    @@index([channelId])
+    @@map("commandable_channels")
+}

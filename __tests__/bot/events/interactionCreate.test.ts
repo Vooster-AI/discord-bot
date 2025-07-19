@@ -30,6 +30,26 @@ vi.mock("../../../src/services/levelService.js", () => ({
   },
 }));
 
+// CommandableChannelService 모킹
+vi.mock("../../../src/application/services/CommandableChannelService.js", () => ({
+  CommandableChannelService: vi.fn().mockImplementation(() => ({
+    isChannelCommandable: vi.fn().mockResolvedValue(true),
+  })),
+}));
+
+// Repository 모킹
+vi.mock("../../../src/infrastructure/persistence/PrismaCommandableChannelRepository.js", () => ({
+  PrismaCommandableChannelRepository: vi.fn().mockImplementation(() => ({
+    getAllActiveChannels: vi.fn(),
+    isChannelCommandable: vi.fn(),
+  })),
+}));
+
+// Prisma 모킹
+vi.mock("../../../src/utils/prisma.js", () => ({
+  prisma: {},
+}));
+
 // Mock Discord.js EmbedBuilder
 vi.mock("discord.js", async () => {
   const actual = await vi.importActual("discord.js");
@@ -69,6 +89,7 @@ describe("InteractionCreate Event Handler", () => {
       isChatInputCommand: () => true,
       commandName: "level",
       user: mockUser,
+      channelId: "test-channel-id",
       options: {
         getUser: vi.fn(),
         getString: vi.fn(),

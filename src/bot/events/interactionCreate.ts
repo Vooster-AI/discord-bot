@@ -11,6 +11,9 @@ import {
   getRewardTypeEmoji,
   truncateContent,
 } from "../../utils/timeUtils.js";
+import { CommandableChannelService } from "../../application/services/CommandableChannelService.js";
+import { PrismaCommandableChannelRepository } from "../../infrastructure/persistence/PrismaCommandableChannelRepository.js";
+import { prisma } from "../../utils/prisma.js";
 
 // 상수 정의
 const COMMAND_COLORS = {
@@ -22,6 +25,10 @@ const COMMAND_COLORS = {
 
 const HISTORY_LIMIT = 5;
 const TOP_LIMIT = 10;
+
+// CommandableChannelService 인스턴스 생성
+const commandableChannelRepository = new PrismaCommandableChannelRepository(prisma);
+const commandableChannelService = new CommandableChannelService(commandableChannelRepository);
 
 export default async function interactionCreateHandler(
   interaction: Interaction
@@ -35,6 +42,18 @@ export default async function interactionCreateHandler(
     console.log(
       `[InteractionCreate] 명령어 사용: ${commandName} by ${interaction.user.tag}`
     );
+
+    // 채널 검증
+    const channelId = interaction.channelId;
+    const isCommandable = await commandableChannelService.isChannelCommandable(channelId);
+    
+    if (!isCommandable) {
+      await interaction.reply({
+        content: "봇사용채널에서 호출해주세요.",
+        ephemeral: true,
+      });
+      return;
+    }
 
     switch (commandName) {
       case "level":
