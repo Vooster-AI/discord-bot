@@ -143,3 +143,7 @@ The codebase is transitioning from a service-based architecture to Clean Archite
 - **Output**: `dist/` directory with source maps
 - **Module Resolution**: Bundler strategy for modern tooling
 - **Strict Mode**: Enabled for type safety
+
+<c2c-rules>
+- @c2c-rules/_root.md
+</c2c-rules>

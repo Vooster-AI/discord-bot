@@ -1,0 +1,11 @@
+## Must
+
+You MUST follow these rules:
+
+- use pnpm
+- be sure to every test succeed
+
+## prisma
+
+- if you updated prisma schema, you MUST run `pnpm db:migrate:create && pnpm db:generate`
+- NEVER run `pnpm db:migrate:deploy`

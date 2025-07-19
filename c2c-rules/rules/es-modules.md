@@ -1,0 +1,111 @@
+# ES Modules Import Rules
+
+**Critical**: This project uses ES modules (`"type": "module"` in [package.json](mdc:package.json)). All imports must follow ES module standards to prevent runtime errors.
+
+## **File Extension Requirements**
+
+- **All local imports MUST include .js extension in TypeScript files**
+  - TypeScript compiles to JavaScript, so imports must reference the output .js files
+  - Even when importing from .ts files, use .js extension in import statements
+
+```typescript
+// ✅ DO: Include .js extension for local imports
+import { startBot } from "./bot/index.js";
+import { UserService } from "./services/userService.js";
+import { prisma } from "./utils/prisma.js";
+import { API_SECRET_KEY } from "./config.js";
+
+// ❌ DON'T: Omit file extensions
+import { startBot } from "./bot/index";
+import { UserService } from "./services/userService";
+import { prisma } from "./utils/prisma";
+```
+
+## **Directory Import Restrictions**
+
+- **Directory imports are NOT supported in ES modules**
+  - Must explicitly reference the index file
+  - Cannot rely on Node.js automatic index resolution
+
+```typescript
+// ✅ DO: Explicit file path
+import { startBot } from "./bot/index.js";
+import { client } from "./bot/index.js";
+
+// ❌ DON'T: Directory import
+import { startBot } from "./bot";
+import { client } from "./bot";
+```
+
+## **External Package Imports**
+
+- **External packages do NOT need file extensions**
+  - NPM packages follow their own module resolution
+
+```typescript
+// ✅ DO: No extension for external packages
+import express from "express";
+import { Client } from "discord.js";
+import { PrismaClient } from "@prisma/client";
+
+// ❌ DON'T: Add extensions to external packages
+import express from "express.js";
+import { Client } from "discord.js/index.js";
+```
+
+## **Common Error Patterns to Avoid**
+
+### 1. ERR_UNSUPPORTED_DIR_IMPORT
+
+```typescript
+// ❌ CAUSES: Directory import error
+import { startBot } from "./bot";
+
+// ✅ FIX: Explicit index file
+import { startBot } from "./bot/index.js";
+```
+
+### 2. ERR_MODULE_NOT_FOUND
+
+```typescript
+// ❌ CAUSES: Missing .js extension
+import { UserService } from "./services/userService";
+
+// ✅ FIX: Add .js extension
+import { UserService } from "./services/userService.js";
+```
+
+## **Build Process Considerations**
+
+- **TypeScript compilation**: `tsc` compiles .ts to .js files
+- **Import resolution**: Node.js resolves imports at runtime using the compiled .js files
+- **File structure**: Maintain the same directory structure in `dist/` as in `src/`
+
+## **Validation Checklist**
+
+Before committing code, verify:
+
+- [ ] All local imports use `.js` extension
+- [ ] No directory imports (use explicit `index.js`)
+- [ ] External packages have no extensions
+- [ ] `pnpm build` succeeds without errors
+- [ ] `pnpm start` runs without import errors
+
+## **Quick Fix Commands**
+
+```bash
+# Build and test for import errors
+pnpm build && pnpm start
+
+# Search for problematic imports
+grep -r "from \"\./.*[^.js]\"" src/
+grep -r "from \"\./.*[^/]\"" src/ | grep -v "\.js"
+```
+
+## **Reference Examples**
+
+See successful implementations in:
+
+- [src/index.ts](mdc:src/index.ts) - Main entry point
+- [src/bot/index.ts](mdc:src/bot/index.ts) - Bot module
+- [src/services/userService.ts](mdc:src/services/userService.ts) - Service layer
