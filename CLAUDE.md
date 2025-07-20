@@ -44,15 +44,13 @@ This Discord bot follows **Clean Architecture** principles with clear separation
   - `repositories/`: Repository interfaces (IUserRepository, ILevelRepository)
   - `services/`: Service interfaces (IDiscordService)
 
-- **Application Layer** (`src/application/`): Use cases and business workflows
+- **Application Layer** (`src/application/`): Business services and workflows
 
-  - `use-cases/`: Business logic implementations (GrantRewardUseCase, GetUserProfileUseCase)
+  - `services/`: Application services (CommandableChannelService)
 
 - **Infrastructure Layer** (`src/infrastructure/`): External dependencies and implementations
 
   - `persistence/`: Prisma repository implementations
-  - `discord/`: Discord.js service implementations
-  - `entrypoints/`: Application entry points
 
 - **Legacy Services** (`src/services/`): Legacy code being gradually migrated
 
@@ -100,8 +98,8 @@ Required environment variables (validated in `src/config.ts`):
 
 1. **Business Logic Changes**:
 
-   - Write tests first in `__tests__/application/use-cases/`
-   - Implement use cases in `src/application/use-cases/`
+   - Write tests first in `__tests__/application/services/`
+   - Implement application services in `src/application/services/`
    - Update domain interfaces if needed
 
 2. **Database Changes**:

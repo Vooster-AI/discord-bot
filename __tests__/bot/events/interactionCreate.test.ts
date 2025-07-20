@@ -1,10 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  Interaction,
-  ChatInputCommandInteraction,
-  User,
-  EmbedBuilder,
-} from "discord.js";
+import { Interaction } from "discord.js";
 import interactionCreateHandler from "../../../src/bot/events/interactionCreate.js";
 import { UserService } from "../../../src/services/userService.js";
 import { LevelService } from "../../../src/services/levelService.js";
@@ -122,6 +117,7 @@ describe("InteractionCreate Event Handler", () => {
         currentLevel: 2,
         currentReward: 10,
         voosterEmail: null,
+        lastDailyBonus: null,
         joinedAt: new Date(),
         updatedAt: new Date(),
       };
@@ -191,6 +187,7 @@ describe("InteractionCreate Event Handler", () => {
         currentLevel: 1,
         currentReward: 0,
         voosterEmail: null,
+        lastDailyBonus: null,
         joinedAt: new Date(),
         updatedAt: new Date(),
       };
@@ -265,6 +262,7 @@ describe("InteractionCreate Event Handler", () => {
           id: 1,
           amount: 5,
           type: "message",
+          reason: null,
           createdAt: new Date("2024-01-01T10:00:00Z"),
           event: {
             channelId: "987654321",
@@ -276,6 +274,7 @@ describe("InteractionCreate Event Handler", () => {
           id: 2,
           amount: 10,
           type: "forum_post",
+          reason: null,
           createdAt: new Date("2024-01-01T11:00:00Z"),
           event: {
             channelId: "987654322",
@@ -318,6 +317,7 @@ describe("InteractionCreate Event Handler", () => {
         currentLevel: 1,
         currentReward: 0,
         voosterEmail: null,
+        lastDailyBonus: null,
         joinedAt: new Date(),
         updatedAt: new Date(),
       };
@@ -388,6 +388,7 @@ describe("InteractionCreate Event Handler", () => {
         currentLevel: 5 - Math.floor(i / 2),
         currentReward: 100 - i * 10,
         voosterEmail: null,
+        lastDailyBonus: null,
         joinedAt: new Date(),
         updatedAt: new Date(),
       }));
@@ -419,6 +420,7 @@ describe("InteractionCreate Event Handler", () => {
         currentLevel: 5,
         currentReward: 100 - i * 10,
         voosterEmail: null,
+        lastDailyBonus: null,
         joinedAt: new Date(),
         updatedAt: new Date(),
       }));
