@@ -27,8 +27,12 @@ const HISTORY_LIMIT = 5;
 const TOP_LIMIT = 10;
 
 // CommandableChannelService 인스턴스 생성
-const commandableChannelRepository = new PrismaCommandableChannelRepository(prisma);
-const commandableChannelService = new CommandableChannelService(commandableChannelRepository);
+const commandableChannelRepository = new PrismaCommandableChannelRepository(
+  prisma
+);
+const commandableChannelService = new CommandableChannelService(
+  commandableChannelRepository
+);
 
 export default async function interactionCreateHandler(
   interaction: Interaction
@@ -45,8 +49,9 @@ export default async function interactionCreateHandler(
 
     // 채널 검증
     const channelId = interaction.channelId;
-    const isCommandable = await commandableChannelService.isChannelCommandable(channelId);
-    
+    const isCommandable =
+      await commandableChannelService.isChannelCommandable(channelId);
+
     if (!isCommandable) {
       await interaction.reply({
         content: "봇사용채널에서 호출해주세요.",
@@ -838,7 +843,7 @@ function getCongratulationsMessage(level: number): string {
   const messages = {
     1: "🌟 새로운 시작! 포인트를 모아서 레벨을 올려보세요!",
     2: "🎉 첫 번째 레벨 업! 계속 활동해보세요!",
-    3: "🔥 Beta MVP 달성! 이제 진짜 시작이네요!",
+    3: "🔥 MVP 달성! 이제 진짜 시작이네요!",
     4: "💪 Active 레벨! 정말 활발하게 활동하고 계시는군요!",
     5: "🚀 Contributor 레벨! 커뮤니티에 기여해주셔서 감사합니다!",
     6: "⚡ Veteran 레벨! 경험이 쌓여가고 있어요!",
