@@ -88,6 +88,9 @@ export default async function interactionCreateHandler(
       case "channel-exp-guide":
         await handleChannelExpGuideCommand(interaction);
         break;
+      case "vooster-check":
+        await handleVoosterCheckCommand(interaction);
+        break;
       default:
         await interaction.reply({
           content: "알 수 없는 명령어입니다.",
@@ -1006,5 +1009,37 @@ async function handleChannelExpGuideCommand(
         ephemeral: true,
       });
     }
+  }
+}
+
+/**
+ * /vooster-check 명령어 처리
+ */
+async function handleVoosterCheckCommand(
+  interaction: ChatInputCommandInteraction
+): Promise<void> {
+  try {
+    // 사용자 정보 조회
+    const userData = await UserService.getUserData(interaction.user.id);
+
+    if (!userData || !userData.voosterEmail) {
+      await interaction.reply({
+        content: "등록된 Vooster 이메일이 없습니다.\n`/vooster <이메일>` 명령어로 이메일을 등록해주세요.",
+        ephemeral: true,
+      });
+      return;
+    }
+
+    await interaction.reply({
+      content: `✅ 등록된 Vooster 이메일: **${userData.voosterEmail}**`,
+      ephemeral: true,
+    });
+  } catch (error) {
+    console.error("[VoosterCheckCommand] Vooster 이메일 확인 명령어 처리 오류:", error);
+
+    await interaction.reply({
+      content: "Vooster 이메일을 확인하는 중 오류가 발생했습니다.",
+      ephemeral: true,
+    });
   }
 }

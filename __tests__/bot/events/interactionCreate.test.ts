@@ -521,6 +521,105 @@ describe("InteractionCreate Event Handler", () => {
     });
   });
 
+  describe("/vooster-check command", () => {
+    it("should show registered vooster email when user has one", async () => {
+      // Arrange
+      const mockUserWithEmail = {
+        id: 1,
+        discordId: "123456789",
+        username: "testuser",
+        globalName: "Test User",
+        discriminator: null,
+        avatarUrl: "https://example.com/avatar.png",
+        currentLevel: 1,
+        currentReward: 0,
+        voosterEmail: "test@vooster.com",
+        lastDailyBonus: null,
+        joinedAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockInteraction.commandName = "vooster-check";
+      
+      vi.mocked(UserService.getUserData).mockResolvedValue(mockUserWithEmail);
+
+      // Act
+      await interactionCreateHandler(mockInteraction as Interaction);
+
+      // Assert
+      expect(UserService.getUserData).toHaveBeenCalledWith("123456789");
+      expect(mockInteraction.reply).toHaveBeenCalledWith({
+        content: "✅ 등록된 Vooster 이메일: **test@vooster.com**",
+        ephemeral: true,
+      });
+    });
+
+    it("should show no email message when user has no vooster email", async () => {
+      // Arrange
+      const mockUserWithoutEmail = {
+        id: 1,
+        discordId: "123456789",
+        username: "testuser",
+        globalName: "Test User",
+        discriminator: null,
+        avatarUrl: "https://example.com/avatar.png",
+        currentLevel: 1,
+        currentReward: 0,
+        voosterEmail: null,
+        lastDailyBonus: null,
+        joinedAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockInteraction.commandName = "vooster-check";
+      
+      vi.mocked(UserService.getUserData).mockResolvedValue(mockUserWithoutEmail);
+
+      // Act
+      await interactionCreateHandler(mockInteraction as Interaction);
+
+      // Assert
+      expect(UserService.getUserData).toHaveBeenCalledWith("123456789");
+      expect(mockInteraction.reply).toHaveBeenCalledWith({
+        content: "등록된 Vooster 이메일이 없습니다.\n`/vooster <이메일>` 명령어로 이메일을 등록해주세요.",
+        ephemeral: true,
+      });
+    });
+
+    it("should show no email message when user does not exist", async () => {
+      // Arrange
+      mockInteraction.commandName = "vooster-check";
+      
+      vi.mocked(UserService.getUserData).mockResolvedValue(null);
+
+      // Act
+      await interactionCreateHandler(mockInteraction as Interaction);
+
+      // Assert
+      expect(UserService.getUserData).toHaveBeenCalledWith("123456789");
+      expect(mockInteraction.reply).toHaveBeenCalledWith({
+        content: "등록된 Vooster 이메일이 없습니다.\n`/vooster <이메일>` 명령어로 이메일을 등록해주세요.",
+        ephemeral: true,
+      });
+    });
+
+    it("should handle errors gracefully", async () => {
+      // Arrange
+      mockInteraction.commandName = "vooster-check";
+      
+      vi.mocked(UserService.getUserData).mockRejectedValue(new Error("Database error"));
+
+      // Act
+      await interactionCreateHandler(mockInteraction as Interaction);
+
+      // Assert
+      expect(mockInteraction.reply).toHaveBeenCalledWith({
+        content: "Vooster 이메일을 확인하는 중 오류가 발생했습니다.",
+        ephemeral: true,
+      });
+    });
+  });
+
   describe("unknown command", () => {
     it("should reply with an error message for unknown commands", async () => {
       // Arrange
