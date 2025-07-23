@@ -7,6 +7,7 @@ export const DISCORD_GUILD_ID = process.env.DISCORD_GUILD_ID!;
 export const DATABASE_URL = process.env.DATABASE_URL!;
 export const PORT = process.env.PORT || "3000";
 export const API_SECRET_KEY = process.env.API_SECRET_KEY!;
+export const INTEGRATION_SECRET = process.env.VERCEL_INTEGRATION_SECRET;
 
 // 환경 변수 검증
 const requiredEnvVars = {

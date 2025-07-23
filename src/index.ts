@@ -2,6 +2,7 @@ import express from "express";
 import { startBot } from "./bot/index.js";
 import { PORT } from "./config.js";
 import migrationRoutes from "./api/routes/migrationRoutes.js";
+import vercelWebhookRoutes from "./api/routes/vercelWebhookRoutes.js";
 import { errorMiddleware } from "./api/middleware/authMiddleware.js";
 
 import dotenv from "dotenv";
@@ -21,8 +22,16 @@ async function main(): Promise<void> {
     // Express API 서버 시작
     const app = express();
 
-    // JSON 파싱 미들웨어
-    app.use(express.json({ limit: "10mb" }));
+    // Vercel webhook을 위한 조건부 JSON 파싱
+    app.use((req, res, next) => {
+      if (req.path === "/api/vercel-webhook") {
+        // Vercel webhook은 raw body가 필요하므로 JSON 파싱을 건너뜀
+        next();
+      } else {
+        express.json({ limit: "10mb" })(req, res, next);
+      }
+    });
+    
     app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
     // CORS 허용 (개발 환경에서만)
@@ -48,6 +57,7 @@ async function main(): Promise<void> {
 
     // API 라우트 등록
     app.use("/api/discord", migrationRoutes);
+    app.use("/api/vercel-webhook", vercelWebhookRoutes);
 
     // 기본 라우트
     app.get("/", (req, res) => {
@@ -59,6 +69,7 @@ async function main(): Promise<void> {
           status: "/api/discord/status",
           migrate: "/api/discord/migrate",
           channelInfo: "/api/discord/channels/:channelId",
+          vercelWebhook: "/api/vercel-webhook",
         },
         documentation: "https://github.com/your-repo/discord-bot-server",
       });
