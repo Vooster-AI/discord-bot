@@ -90,16 +90,11 @@ export async function handleVercelWebhook(
       .setDescription(
         `새로운 배포가 ${json.payload.target || "preview"} 환경에 생성되었습니다.`
       )
-      .addFields(
-        { name: "프로젝트", value: json.payload.deployment.name, inline: true },
-        { name: "타겟", value: json.payload.target || "preview", inline: true },
-        { name: "Plan", value: json.payload.plan, inline: true },
-        { name: "배포 URL", value: json.payload.deployment.url },
-        {
-          name: "대시보드",
-          value: `[배포 보기](${json.payload.links.deployment}) | [프로젝트 보기](${json.payload.links.project})`,
-        }
-      )
+      .addFields({
+        name: "프로젝트",
+        value: json.payload.deployment.name,
+        inline: true,
+      })
       .setTimestamp(new Date(json.createdAt))
       .setFooter({ text: `Deployment ID: ${json.payload.deployment.id}` });
 
