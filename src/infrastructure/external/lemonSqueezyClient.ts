@@ -1,4 +1,10 @@
-import { LEMONSQUEEZY_API_KEY, LEMONSQUEEZY_STORE_ID, LEMONSQUEEZY_PRO_VARIANT_ID, LEMONSQUEEZY_MAX5_VARIANT_ID, LEMONSQUEEZY_MAX20_VARIANT_ID } from "../../config.js";
+import {
+  LEMONSQUEEZY_API_KEY,
+  LEMONSQUEEZY_STORE_ID,
+  LEMONSQUEEZY_PRO_VARIANT_ID,
+  LEMONSQUEEZY_MAX5_VARIANT_ID,
+  LEMONSQUEEZY_MAX20_VARIANT_ID,
+} from "../../config.js";
 
 interface CreateDiscountParams {
   name: string;
@@ -45,6 +51,8 @@ export class LemonSqueezyClient {
           amount: params.amount,
           amount_type: params.amountType,
           is_limited_to_products: params.isLimitedToProducts || false,
+          is_limited_redemptions: true,
+          max_redemptions: 1,
         },
         relationships: {
           store: {
@@ -98,12 +106,18 @@ export class LemonSqueezyClient {
     max20Coupon: string;
   }> {
     // Variant ID 검증
-    if (!LEMONSQUEEZY_PRO_VARIANT_ID || !LEMONSQUEEZY_MAX5_VARIANT_ID || !LEMONSQUEEZY_MAX20_VARIANT_ID) {
-      throw new Error("Lemon Squeezy Variant ID가 설정되지 않았습니다. 환경 변수를 확인하세요.");
+    if (
+      !LEMONSQUEEZY_PRO_VARIANT_ID ||
+      !LEMONSQUEEZY_MAX5_VARIANT_ID ||
+      !LEMONSQUEEZY_MAX20_VARIANT_ID
+    ) {
+      throw new Error(
+        "Lemon Squeezy Variant ID가 설정되지 않았습니다. 환경 변수를 확인하세요."
+      );
     }
 
     const timestamp = Date.now();
-    
+
     // Pro 쿠폰 생성 (100% 할인)
     const proCoupon = await this.createDiscount({
       name: `MVP Pro Coupon - ${userId}`,
