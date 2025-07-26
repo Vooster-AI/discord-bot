@@ -61,6 +61,10 @@ const commands = [
   new SlashCommandBuilder()
     .setName("vooster-check")
     .setDescription("등록된 Vooster 이메일을 확인합니다."),
+
+  new SlashCommandBuilder()
+    .setName("mvp-coupon")
+    .setDescription("Beta MVP 역할 보유자를 위한 쿠폰을 발급받습니다."),
 ].map((command) => command.toJSON());
 
 // Discord REST API 클라이언트 생성

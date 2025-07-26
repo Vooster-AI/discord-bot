@@ -14,6 +14,7 @@ import {
 import { CommandableChannelService } from "../../application/services/CommandableChannelService.js";
 import { PrismaCommandableChannelRepository } from "../../infrastructure/persistence/PrismaCommandableChannelRepository.js";
 import { prisma } from "../../utils/prisma.js";
+import { MvpCouponService } from "../../application/services/mvpCouponService.js";
 
 // 상수 정의
 const COMMAND_COLORS = {
@@ -25,6 +26,7 @@ const COMMAND_COLORS = {
 
 const HISTORY_LIMIT = 5;
 const TOP_LIMIT = 10;
+const MVP_ROLE_ID = "1393338078612947174";
 
 // CommandableChannelService 인스턴스 생성
 const commandableChannelRepository = new PrismaCommandableChannelRepository(
@@ -33,6 +35,9 @@ const commandableChannelRepository = new PrismaCommandableChannelRepository(
 const commandableChannelService = new CommandableChannelService(
   commandableChannelRepository
 );
+
+// MvpCouponService 인스턴스 생성
+const mvpCouponService = new MvpCouponService();
 
 export default async function interactionCreateHandler(
   interaction: Interaction
@@ -90,6 +95,9 @@ export default async function interactionCreateHandler(
         break;
       case "vooster-check":
         await handleVoosterCheckCommand(interaction);
+        break;
+      case "mvp-coupon":
+        await handleMvpCouponCommand(interaction);
         break;
       default:
         await interaction.reply({
@@ -535,6 +543,11 @@ async function handleHelpCommand(
         {
           name: "/channel-exp-guide",
           value: "채널별 포인트 보상 정보를 확인합니다.",
+          inline: false,
+        },
+        {
+          name: "/mvp-coupon",
+          value: "Beta MVP 역할 보유자를 위한 쿠폰을 발급받습니다.",
           inline: false,
         },
         {
@@ -1024,7 +1037,8 @@ async function handleVoosterCheckCommand(
 
     if (!userData || !userData.voosterEmail) {
       await interaction.reply({
-        content: "등록된 Vooster 이메일이 없습니다.\n`/vooster <이메일>` 명령어로 이메일을 등록해주세요.",
+        content:
+          "등록된 Vooster 이메일이 없습니다.\n`/vooster <이메일>` 명령어로 이메일을 등록해주세요.",
         ephemeral: true,
       });
       return;
@@ -1035,10 +1049,106 @@ async function handleVoosterCheckCommand(
       ephemeral: true,
     });
   } catch (error) {
-    console.error("[VoosterCheckCommand] Vooster 이메일 확인 명령어 처리 오류:", error);
+    console.error(
+      "[VoosterCheckCommand] Vooster 이메일 확인 명령어 처리 오류:",
+      error
+    );
 
     await interaction.reply({
       content: "Vooster 이메일을 확인하는 중 오류가 발생했습니다.",
+      ephemeral: true,
+    });
+  }
+}
+
+/**
+ * /mvp-coupon 명령어 처리
+ */
+async function handleMvpCouponCommand(
+  interaction: ChatInputCommandInteraction
+): Promise<void> {
+  try {
+    await interaction.deferReply({ ephemeral: true });
+
+    // MVP 역할 확인
+    const member = interaction.member;
+    if (
+      !member ||
+      typeof member.roles === "string" ||
+      Array.isArray(member.roles)
+    ) {
+      await interaction.followUp({
+        content: "권한을 확인할 수 없습니다.",
+        ephemeral: true,
+      });
+      return;
+    }
+
+    const hasRole = member.roles.cache.has(MVP_ROLE_ID);
+    if (!hasRole) {
+      await interaction.followUp({
+        content:
+          "이 명령어는 Beta MVP 역할을 가진 사용자만 사용할 수 있습니다.",
+        ephemeral: true,
+      });
+      return;
+    }
+
+    // 사용자 자격 확인
+    const eligibility = await mvpCouponService.checkUserEligibility(
+      interaction.user.id
+    );
+    if (!eligibility.isEligible) {
+      await interaction.followUp({
+        content: eligibility.error || "자격 요건을 충족하지 않습니다.",
+        ephemeral: true,
+      });
+      return;
+    }
+
+    // 쿠폰 발급 또는 조회
+    const coupons = await mvpCouponService.getOrCreateCoupons(
+      interaction.user.id
+    );
+
+    const embed = new EmbedBuilder()
+      .setTitle("🎟️ Beta MVP 쿠폰")
+      .setDescription(
+        "아래 쿠폰 코드를 사용하여 Vooster 서비스를 무료로 이용하세요!"
+      )
+      .setColor(0x5865f2)
+      .addFields(
+        {
+          name: "🚀 Pro 플랜 쿠폰",
+          value: `\`${coupons.proCoupon}\``,
+          inline: false,
+        },
+        {
+          name: "📊 Max5 플랜 쿠폰",
+          value: `\`${coupons.max5Coupon}\``,
+          inline: false,
+        },
+        {
+          name: "🏆 Max20 플랜 쿠폰",
+          value: `\`${coupons.max20Coupon}\``,
+          inline: false,
+        }
+      )
+      .setFooter({
+        text: "이 쿠폰들은 100% 할인을 제공합니다.",
+        iconURL: interaction.client.user?.displayAvatarURL(),
+      })
+      .setTimestamp();
+
+    await interaction.followUp({
+      embeds: [embed],
+      ephemeral: true,
+    });
+  } catch (error) {
+    console.error("[MvpCouponCommand] MVP 쿠폰 명령어 처리 오류:", error);
+
+    await interaction.followUp({
+      content: "쿠폰 발급 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
       ephemeral: true,
     });
   }

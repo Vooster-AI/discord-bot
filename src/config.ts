@@ -9,6 +9,13 @@ export const PORT = process.env.PORT || "3000";
 export const API_SECRET_KEY = process.env.API_SECRET_KEY!;
 export const INTEGRATION_SECRET = process.env.VERCEL_INTEGRATION_SECRET;
 
+// Lemon Squeezy
+export const LEMONSQUEEZY_API_KEY = process.env.LEMONSQUEEZY_API_KEY;
+export const LEMONSQUEEZY_STORE_ID = process.env.LEMONSQUEEZY_STORE_ID;
+export const LEMONSQUEEZY_PRO_VARIANT_ID = process.env.LEMONSQUEEZY_PRO_VARIANT_ID;
+export const LEMONSQUEEZY_MAX5_VARIANT_ID = process.env.LEMONSQUEEZY_MAX5_VARIANT_ID;
+export const LEMONSQUEEZY_MAX20_VARIANT_ID = process.env.LEMONSQUEEZY_MAX20_VARIANT_ID;
+
 // 환경 변수 검증
 const requiredEnvVars = {
   DISCORD_TOKEN,
