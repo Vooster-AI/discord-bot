@@ -196,7 +196,10 @@ describe("LemonSqueezyClient", () => {
   });
 
   describe("constructor", () => {
-    it("API 키가 없으면 에러를 던져야 함", () => {
+    it("API 키가 없으면 에러를 던져야 함", async () => {
+      // 모듈 캐시 리셋
+      vi.resetModules();
+      
       // config 모듈 재모킹
       vi.doMock("../../../src/config.js", () => ({
         LEMONSQUEEZY_API_KEY: undefined,
@@ -206,8 +209,32 @@ describe("LemonSqueezyClient", () => {
         LEMONSQUEEZY_MAX20_VARIANT_ID: "test-max20-variant-id",
       }));
 
-      expect(() => new LemonSqueezyClient()).toThrow(
+      // 모듈 재import
+      const { LemonSqueezyClient: TestClient } = await import("../../../src/infrastructure/external/lemonSqueezyClient.js");
+
+      expect(() => new TestClient()).toThrow(
         "LEMONSQUEEZY_API_KEY가 설정되지 않았습니다."
+      );
+    });
+
+    it("Store ID가 없으면 에러를 던져야 함", async () => {
+      // 모듈 캐시 리셋
+      vi.resetModules();
+      
+      // config 모듈 재모킹
+      vi.doMock("../../../src/config.js", () => ({
+        LEMONSQUEEZY_API_KEY: "test-api-key",
+        LEMONSQUEEZY_STORE_ID: undefined,
+        LEMONSQUEEZY_PRO_VARIANT_ID: "test-pro-variant-id",
+        LEMONSQUEEZY_MAX5_VARIANT_ID: "test-max5-variant-id",
+        LEMONSQUEEZY_MAX20_VARIANT_ID: "test-max20-variant-id",
+      }));
+
+      // 모듈 재import
+      const { LemonSqueezyClient: TestClient2 } = await import("../../../src/infrastructure/external/lemonSqueezyClient.js");
+
+      expect(() => new TestClient2()).toThrow(
+        "LEMONSQUEEZY_STORE_ID가 설정되지 않았습니다."
       );
     });
   });

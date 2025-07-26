@@ -1135,7 +1135,7 @@ async function handleMvpCouponCommand(
         }
       )
       .setFooter({
-        text: "이 쿠폰들은 100% 할인을 제공합니다.",
+        text: "Pro: 100% 할인 | Max5, Max20: 90% 할인",
         iconURL: interaction.client.user?.displayAvatarURL(),
       })
       .setTimestamp();
