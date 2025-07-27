@@ -53,6 +53,7 @@ export class LemonSqueezyClient {
           is_limited_to_products: params.isLimitedToProducts || false,
           is_limited_redemptions: true,
           max_redemptions: 1,
+          duration: "forever",
         },
         relationships: {
           store: {
