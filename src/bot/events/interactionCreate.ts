@@ -1111,6 +1111,11 @@ async function handleMvpCouponCommand(
       interaction.user.id
     );
 
+    // Beta MVP 마킹
+    if (eligibility.voosterEmail) {
+      await mvpCouponService.markUserAsBetaMvp(eligibility.voosterEmail);
+    }
+
     const embed = new EmbedBuilder()
       .setTitle("🎟️ Beta MVP 쿠폰")
       .setDescription(

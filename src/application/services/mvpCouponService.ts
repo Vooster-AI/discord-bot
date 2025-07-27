@@ -1,5 +1,6 @@
 import { LemonSqueezyClient } from "../../infrastructure/external/lemonSqueezyClient.js";
 import { prisma } from "../../utils/prisma.js";
+import axios from "axios";
 
 export class MvpCouponService {
   private lemonSqueezyClient: LemonSqueezyClient;
@@ -11,6 +12,7 @@ export class MvpCouponService {
   async checkUserEligibility(discordId: string): Promise<{
     isEligible: boolean;
     error?: string;
+    voosterEmail?: string;
   }> {
     const user = await prisma.discordUser.findUnique({
       where: { discordId },
@@ -31,7 +33,36 @@ export class MvpCouponService {
       };
     }
 
-    return { isEligible: true };
+    // Vooster 이메일 유효성 검증
+    try {
+      const apiUrl = process.env.API_URL;
+      if (!apiUrl) {
+        console.error("API_URL 환경 변수가 설정되지 않았습니다.");
+        return { isEligible: true, voosterEmail: user.voosterEmail };
+      }
+
+      const response = await axios.post(
+        `${apiUrl}/check-email-exists`,
+        { email: user.voosterEmail },
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.DISCORD_BOT_API_SECRET}`,
+          },
+        }
+      );
+
+      if (!response.data.exists) {
+        return {
+          isEligible: false,
+          error: "등록된 Vooster 이메일이 유효하지 않습니다. 올바른 이메일로 다시 등록해주세요.",
+        };
+      }
+    } catch (error) {
+      console.error("이메일 검증 중 오류 발생:", error);
+      // API 오류 시 기본적으로 통과시킴
+    }
+
+    return { isEligible: true, voosterEmail: user.voosterEmail };
   }
 
   async getOrCreateCoupons(discordId: string): Promise<{
@@ -71,5 +102,30 @@ export class MvpCouponService {
     });
 
     return coupons;
+  }
+
+  async markUserAsBetaMvp(voosterEmail: string): Promise<void> {
+    try {
+      const apiUrl = process.env.API_URL;
+      if (!apiUrl) {
+        console.error("API_URL 환경 변수가 설정되지 않았습니다.");
+        return;
+      }
+
+      await axios.post(
+        `${apiUrl}/mark-as-beta-mvp`,
+        { email: voosterEmail },
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.DISCORD_BOT_API_SECRET}`,
+          },
+        }
+      );
+      
+      console.log(`Beta MVP 마킹 완료: ${voosterEmail}`);
+    } catch (error) {
+      console.error("Beta MVP 마킹 중 오류 발생:", error);
+      // 마킹 실패해도 쿠폰 발급은 진행
+    }
   }
 }
